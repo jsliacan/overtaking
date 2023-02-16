@@ -1,10 +1,13 @@
 # overtaking
 
-Python project with code analyzing overtaking distances
+Python project with code analyzing overtaking distances.
 
+The assumption is that the data are structured as shared, but `BikeLogs` folder is placed in `$(HOME)/Downloads`. If not the case, modify `constants.py` so that `DATA_HOME` variable is the expansion of the correct location. Use `~` for `$(HOME)` (user's home dir).
+
+## Example
 From date `20230112`.
 
-Data from the box (classification: -1 oncoming, 1 overtaking)
+Data from the box (classification: -1 oncoming, 1 overtaking, 0 didn't find any significant dip in lat distance). Same output can by obtained by running `python3 box.py`.
 ```
 ('timestamp', 'index', 'event length', 'lat dist', 'classification')
 ('18:49:37', 20894, 5, 439, -1)
@@ -34,7 +37,7 @@ Data from the box (classification: -1 oncoming, 1 overtaking)
 ('19:48:19', 95008, 9, 368, -1)
 ```
 
-Data from the radar:
+Data from the radar. Can be obtained by running `python3 radar.py`. Each timestamp stands for incremented radar counter.
 
 ```
 1 2023-01-12 18:36:51+00:00
