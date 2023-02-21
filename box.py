@@ -26,35 +26,35 @@ def read_csv(filename):
     return csv_reader
 
 
-def get_event_lengths_and_starts(ldata):
+def get_press_lengths_and_starts(ldata):
 
-    event_lengths = list()
-    event_starts = list()
-    len_event = 0
+    press_lengths = list()
+    press_starts = list()
+    len_press = 0
 
     i = 0
     for row in ldata:
 
         if row[5] == 1:
-            if len_event == 0:
-                event_starts.append(i)
-            len_event += 1
+            if len_press == 0:
+                press_starts.append(i)
+            len_press += 1
 
-        if row[5] == 0 and len_event > 0:
-            event_lengths.append(len_event)
-            len_event = 0
+        if row[5] == 0 and len_press > 0:
+            press_lengths.append(len_press)
+            len_press = 0
 
         i += 1
 
-    return (event_lengths, event_starts)
+    return (press_lengths, press_starts)
 
 
-def get_event_timestamps(ldata, event_starts):
+def get_press_timestamps(ldata, press_starts):
 
     timestamps = []
 
-    for es in event_starts:
-        for j in range(22):  # there's a timestamp every 22nd row
+    for es in press_starts:
+        for j in range(22):  # there's a timestamp within every 22 rows
             timestamp = ldata[es+j][0].strip()
             if timestamp != "":
                 timestamps.append(timestamp)
@@ -73,48 +73,59 @@ def make_ldata(csv_reader):
     return ldata
 
 
-def find_passing_car(event_starts, ldata):
+def find_passing_cars(ps, pl, ldata):
+    """Returns a lit of before-intervals and after-intervals for each button press.
+
+    INPUT:
+
+    ps      - row where the button press starts in ldata
+    pl      - length of the button press starting at row ps
+    ldata   - csv data converted to list of rows (lists themselves)
+
+    OUTPUT:
+
+    pair of lists - low-lateral-dist intervals before button press, and low-lateral-dist intervals after button press.
     """
-    Returns min overtaking or meeting distances and classification guess 
-    between overtaking and oncoming.
 
-    event_starts    -- indices of event starts in ldata
-    ldata           -- csv data as a list
+    dist = ldata[ps][4]
 
+    bintervals = []
+    binterval_length = 0
+    binterval_distances = []
+    aintervals = []
+    ainterval_length = 0
+    ainterval_distances = []
 
-    Return:
+    for i in range(100):  # 50 is some max value, might replace later
+        before_dist = ldata[ps-i][4]
 
-        (list of(min dist), list of(-1/1)) 
-    """
+        if before_dist < 0.9*dist:  # require at least 20% dip in lateral distance
+            binterval_length += 1
+            binterval_distances.insert(0, before_dist)
+        else:
+            if binterval_length > 2:
+                bintervals.append(
+                    [ps-i, binterval_length, binterval_distances])
+                binterval_length = 0
+                binterval_distances = []
 
-    min_distances = []
-    classifications = []
+        # Don't look for oncoming cars if button press is over 10 rows long
+        if pl >= 10:
+            continue
 
-    dist = 0
-    for es in event_starts:
+        after_dist = ldata[ps+i][4]
 
-        dist = ldata[es][4]
+        if after_dist < 0.9*dist:  # require at least 20% dip in lateral distance
+            ainterval_length += 1
+            ainterval_distances.append(after_dist)
+        else:
+            if ainterval_length > 1:
+                aintervals.append(
+                    [ps+i - ainterval_length, ainterval_length, ainterval_distances])
+                ainterval_length = 0
+                ainterval_distances = []
 
-        for i in range(50):  # 50 is some max value, might replace later
-            before_dist = ldata[es-i][4]
-            after_dist = ldata[es+i][4]
-
-            if before_dist < 0.9*dist:  # require at least 20% dip in lateral distance
-                dist_seq = [ldata[es-j][4] for j in range(100)]
-                min_distances.append(get_first_minimum(dist_seq))
-                classifications.append(1)  # it's overtaking
-                break
-            elif after_dist < 0.9*dist:  # require at least 20% dip in lateral distance
-                dist_seq = [ldata[es+j][4] for j in range(100)]
-                min_distances.append(get_first_minimum(dist_seq))
-                classifications.append(-1)  # it's oncoming
-                break
-
-            if i == 49:
-                min_distances.append(9999)
-                classifications.append(0)
-
-    return (min_distances, classifications)
+    return (bintervals, aintervals)
 
 
 if __name__ == "__main__":
@@ -124,17 +135,30 @@ if __name__ == "__main__":
     csvr = read_csv(csv_file)
     ldata = make_ldata(csvr)
 
-    event_lengths, event_starts = get_event_lengths_and_starts(ldata)
-    event_timestamps = get_event_timestamps(ldata, event_starts)
-    min_distances, classifications = find_passing_car(event_starts, ldata)
+    press_lengths, press_starts = get_press_lengths_and_starts(ldata)
+    press_timestamps = get_press_timestamps(ldata, press_starts)
+    bintervals, aintervals = find_passing_cars(
+        press_starts[0], press_lengths[0], ldata)
+
+    for i in range(len(press_starts)):
+        bintervals, aintervals = find_passing_cars(
+            press_starts[i], press_lengths[i], ldata)
+
+        print("Event:", i)
+        print("Press start:", press_starts[i])
+        print("Before press intervals:", bintervals)
+        print("After press intervals:", aintervals)
+        print()
+        i += 1
 
     # print("event_timestamps:", event_timestamps)
     # print("event lengths:", event_lengths)
     # print("min distances:", min_distances)
     # print("classifications:", classifications)
 
+    """
     zipped = zip(event_timestamps, event_starts,
-                 event_lengths, min_distances, classifications)
-
+                 event_lengths)
     for entry in zipped:
         print(entry)
+    """
