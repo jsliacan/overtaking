@@ -46,7 +46,40 @@ def get_press_lengths_and_starts(ldata):
 
         i += 1
 
-    return (press_lengths, press_starts)
+    return (press_starts, press_lengths)
+
+
+def correct_press_lengths_and_starts(press_starts, press_lengths):
+    """
+    Check if any presses are only <2 rows apart. If yes, concatenate those presses.
+
+    It is physically near-impossible to press button 2x (on purpose) only 1/11s apart.
+    """
+
+    original_num_presses = len(press_starts)
+    num_presses = original_num_presses
+    offset = 2  # offset=1 is simply due to indexing from 0 to len-offset
+
+    while True:
+        for i in range(num_presses-offset):
+
+            # if button presses are too close to each other
+            if press_starts[i] + press_lengths[i] >= press_starts[i+1] - 2:
+                # keep press_start of the first press
+                # make its length sum of the two presses plus gap between them
+                press_lengths[i] = press_starts[i+1] - \
+                    press_starts[i] + press_lengths[i+1]
+                press_lengths.pop(i+1)  # remove the second press
+                press_starts.pop(i+1)  # remove the second press
+                offset += 1
+
+        if num_presses == original_num_presses:  # if no changes, done.
+            break
+        else:
+            # if concatenated some presses, repeat.
+            original_num_presses = num_presses
+
+    return (press_starts, press_lengths)
 
 
 def get_press_timestamps(ldata, press_starts):
@@ -98,6 +131,8 @@ def find_passing_cars(ps, pl, ldata):
 
     for i in range(100):  # 50 is some max value, might replace later
         before_dist = ldata[ps-i][4]
+        if ps-i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
+            break
 
         if before_dist < 0.9*dist:  # require at least 20% dip in lateral distance
             binterval_length += 1
@@ -135,10 +170,10 @@ if __name__ == "__main__":
     csvr = read_csv(csv_file)
     ldata = make_ldata(csvr)
 
-    press_lengths, press_starts = get_press_lengths_and_starts(ldata)
+    press_starts, press_lengths = get_press_lengths_and_starts(ldata)
+    press_starts, press_lengths = correct_press_lengths_and_starts(
+        press_starts, press_lengths)
     press_timestamps = get_press_timestamps(ldata, press_starts)
-    bintervals, aintervals = find_passing_cars(
-        press_starts[0], press_lengths[0], ldata)
 
     for i in range(len(press_starts)):
         bintervals, aintervals = find_passing_cars(
