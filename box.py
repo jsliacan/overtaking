@@ -138,7 +138,7 @@ def find_passing_cars(ps, pl, ldata):
             binterval_length += 1
             binterval_distances.insert(0, before_dist)
         else:
-            if binterval_length > 2:
+            if binterval_length > 0:
                 bintervals.append(
                     [ps-i, binterval_length, binterval_distances])
                 binterval_length = 0
@@ -154,7 +154,7 @@ def find_passing_cars(ps, pl, ldata):
             ainterval_length += 1
             ainterval_distances.append(after_dist)
         else:
-            if ainterval_length > 1:
+            if ainterval_length > 0:
                 aintervals.append(
                     [ps+i - ainterval_length, ainterval_length, ainterval_distances])
                 ainterval_length = 0
