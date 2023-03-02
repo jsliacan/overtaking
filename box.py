@@ -105,14 +105,16 @@ def get_next_closest_timestamp(ldata, line_number):
     return timestamp
 
 
-def find_events_for_press(ps, pl, ldata):
+def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
     """Returns a lit of before-intervals and after-intervals for each button press.
 
     INPUT:
 
-    ps      - row where the button press starts in ldata
-    pl      - length of the button press starting at row ps
-    ldata   - csv data converted to list of rows (lists themselves)
+    ps          -- row where the button press starts in ldata
+    pl          -- length of the button press starting at row ps
+    gap_to_next -- number of rows to the closest next button press_start
+    gap_to_prev -- number of rows to the closest previous button press_start
+    ldata       -- csv data converted to list of rows (lists themselves)
 
     OUTPUT:
 
@@ -128,55 +130,82 @@ def find_events_for_press(ps, pl, ldata):
     ainterval_length = 0
     ainterval_distances = []
 
-    for i in range(100):  # 50 is some max value, might replace later
-        before_dist = ldata[ps - i][4]
-        if ps - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
-            break
+    for i in range(100):  # 100 is some max value (~4s), might replace later
 
-        if before_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
-            binterval_length += 1
-            binterval_distances.insert(0, before_dist)
-        else:
-            if binterval_length > 0:
-                bintervals.append([ps - i, binterval_length, binterval_distances])
-                binterval_length = 0
-                binterval_distances = []
+        if i < gap_to_prev:
+
+            before_dist = ldata[ps - i][4]
+            if ps - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
+                break
+
+            if before_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
+                binterval_length += 1
+                binterval_distances.insert(0, before_dist)
+            else:
+                if binterval_length > 0:
+                    bintervals.append([ps - i, binterval_length, binterval_distances])
+                    binterval_length = 0
+                    binterval_distances = []
 
         # Don't look for oncoming cars if button press is over 10 rows long
         if pl >= 10:
             continue
 
-        after_dist = ldata[ps + i][4]
+        if i < gap_to_next:
+            after_dist = ldata[ps + i][4]
 
-        if after_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
-            ainterval_length += 1
-            ainterval_distances.append(after_dist)
-        else:
-            if ainterval_length > 0:
-                aintervals.append([ps + i - ainterval_length, ainterval_length, ainterval_distances])
-                ainterval_length = 0
-                ainterval_distances = []
+            if after_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
+                ainterval_length += 1
+                ainterval_distances.append(after_dist)
+            else:
+                if ainterval_length > 0:
+                    aintervals.append([ps + i - ainterval_length, ainterval_length, ainterval_distances])
+                    ainterval_length = 0
+                    ainterval_distances = []
 
     return (bintervals, aintervals)
 
 
 def make_events(press_starts, press_lengths, ldata):
     """
-    Event = [timestamp, press_start, press_length, dipped lat.dist. interval]
+    Event = [flag, timestamp, press_start, dipped lat.dist. interval]
+
+    Flags:
+
+        0 -- press length > 10, so quite sure it's overtaking
+        1 -- only 1 event around the button press, so fairly sure that's it (whether overtake or oncoming)
+        2 -- took closest event, both sides of button press have a distinct event
+        3 -- many events around button press -- messy situation
+        4 -- shared event between two button presses [error!]
     """
+
+    flag0 = 0
+    flag1 = 1
+    flag2 = 2
+    flag3 = 3
+    flag4 = 4
 
     events = list()  # will hold overtaking/oncoming events
 
-    bintervals, aintervals = find_events_for_press(press_starts[i], press_lengths[i], ldata)
-
     for i in range(len(press_starts)):
+
+        gap_to_next = 0
+        gap_to_prev = 0
+        if i == 0:
+            gap_to_next = press_starts[i + 1] - press_starts[i]
+        elif i == len(press_starts) - 1:
+            gap_to_prev = press_starts[i] - press_starts[i - 1]
+        else:
+            gap_to_prev = press_starts[i] - press_starts[i - 1]
+            gap_to_next = press_starts[i + 1] - press_starts[i]
+
+        bintervals, aintervals = find_events_for_press(press_starts[i], press_lengths[i], gap_to_prev, gap_to_next, ldata)
 
         # false event
         if len(bintervals) + len(aintervals) == 0:
             continue
 
-        # clear overtake
-        if press_lengths[i] >= 10:
+        if press_lengths[i] >= 10:  # clear overtake
             if len(bintervals) == 0:
                 raise IndexError(
                     "No overtaking intervals found for this button press of length",
@@ -184,38 +213,42 @@ def make_events(press_starts, press_lengths, ldata):
                 )
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            events.append([event_timestamp] + interval_info)
-            continue
+            events.append([flag0] + [event_timestamp] + interval_info)
 
-        # oncoming
-        if len(bintervals) == 0:
+        elif len(bintervals) == 0:  # oncoming
             interval_info = aintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            events.append([event_timestamp] + interval_info)
-            continue
+            events.append([flag1] + [event_timestamp] + interval_info)
 
-        # overtaking
-        if len(aintervals) == 0:
+        elif len(aintervals) == 0:  # overtaking
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            events.append([event_timestamp] + interval_info)
-            continue
+            events.append([flag1] + [event_timestamp] + interval_info)
 
-        # both binervals and aintervals exist!
-        if press_starts[i] - bintervals[0][0] < aintervals[0][0] - press_starts[i]:
+        elif press_starts[i] - bintervals[0][0] < aintervals[0][0] - press_starts[i]:  # both binervals and aintervals exist!
             # closest binterval is closer to button press than closest ainterval
             # assume that's what the button press was about
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            events.append([event_timestamp] + interval_info)
-            continue
+            flag = 2
+            if len(bintervals) + len(aintervals) > 2:
+                flag = 3
+            events.append([flag] + [event_timestamp] + interval_info)
+
         else:
             # closest ainterval is closer to button press than closest binterval
             # assume that's what the button press was about
             interval_info = aintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            events.append([event_timestamp] + interval_info)
-            continue
+            flag = 2
+            if len(bintervals) + len(aintervals) > 2:
+                flag = 3
+            events.append([flag] + [event_timestamp] + interval_info)
+
+        # correct flag if necessary
+        if i > 1 and events[-1][2] == events[-2][2]:
+            events[-1][0] = 4  # mark them as shared events (by 2 different button presses)
+            events[-2][0] = 4
 
     return events
 
