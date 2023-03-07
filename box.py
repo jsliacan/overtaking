@@ -1,6 +1,7 @@
 import os
 import csv
-import constants
+import constants, util
+import matplotlib.pyplot as plt
 
 ldata = []  # will hold contents of the CSV file in list format
 
@@ -19,7 +20,11 @@ def get_first_minimum(seq):
 def read_csv(filename):
     """Read CSV file and return a reader."""
     csv_file = open(filename, newline="")
-    csv_reader = csv.reader(csv_file, delimiter=",")
+
+    line = csv_file.readline()
+    csv_reader = csv.reader(csv_file, delimiter="\t")
+    if "," in line:
+        csv_reader = csv.reader(csv_file, delimiter=",")
 
     return csv_reader
 
@@ -266,6 +271,7 @@ def make_events(press_starts, press_lengths, ldata):
 
 if __name__ == "__main__":
 
+    """
     csv_file = os.path.join(constants.DATA_HOME, "20230112", "ANALOG31.TXT")
     csvr = read_csv(csv_file)
     ldata = make_ldata(csvr)  # CSV data as a list
@@ -275,26 +281,20 @@ if __name__ == "__main__":
     events = make_events(press_starts, press_lengths, ldata)
     for e in events:
         print(e)
+    """
 
-    """
-    for i in range(len(press_starts)):
-        bintervals, aintervals = find_passing_cars(
-            press_starts[i], press_lengths[i], ldata)
+    box_files = util.get_box_files(constants.DATA_HOME)
 
-        print("Event:", i)
-        print("Press start:", press_starts[i])
-        print("Before press intervals:", bintervals)
-        print("After press intervals:", aintervals)
-        print()
-        i += 1
-    """
-    # print("event_timestamps:", event_timestamps)
-    # print("event lengths:", event_lengths)
-    # print("min distances:", min_distances)
-    # print("classifications:", classifications)
-    """
-    zipped = zip(event_timestamps, event_starts,
-                 event_lengths)
-    for entry in zipped:
-        print(entry)
-    """
+    all_press_lengths = []
+
+    for csv_file in box_files:
+        print(csv_file)
+        csvr = read_csv(csv_file)
+        ldata = make_ldata(csvr)
+
+        # press lenghts/starts are already corrected for interrupts
+        press_starts, press_lengths = get_press_lengths_and_starts(ldata)
+        all_press_lengths += press_lengths
+
+    plt.hist(all_press_lengths, bins=50)
+    plt.show()
