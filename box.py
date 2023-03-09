@@ -137,7 +137,8 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
 
     for i in range(100):  # 100 is some max value (~4s), might replace later
 
-        if i < gap_to_prev:
+        # only look for overtaking events if press length is > 7
+        if pl > 7 and i < gap_to_prev:
 
             before_dist = ldata[ps - i][4]
             if ps - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
@@ -152,11 +153,8 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
                     binterval_length = 0
                     binterval_distances = []
 
-        # Don't look for oncoming cars if button press is over 10 rows long
-        if pl >= 10:
-            continue
-
-        if i < gap_to_next:
+        # don't look for oncoming events if press length is > 10
+        if pl < 10 and i < gap_to_next:
             after_dist = ldata[ps + i][4]
 
             if after_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
@@ -271,18 +269,19 @@ def make_events(press_starts, press_lengths, ldata):
 
 if __name__ == "__main__":
 
-    """
     csv_file = os.path.join(constants.DATA_HOME, "20230112", "ANALOG31.TXT")
     csvr = read_csv(csv_file)
     ldata = make_ldata(csvr)  # CSV data as a list
 
     press_starts, press_lengths = get_press_lengths_and_starts(ldata)
 
+    print(press_starts)
+
     events = make_events(press_starts, press_lengths, ldata)
     for e in events:
         print(e)
-    """
 
+    """
     box_files = util.get_box_files(constants.DATA_HOME)
 
     all_press_lengths = []
@@ -298,3 +297,4 @@ if __name__ == "__main__":
 
     plt.hist(all_press_lengths, bins=50)
     plt.show()
+    """
