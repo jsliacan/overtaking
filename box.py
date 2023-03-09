@@ -171,22 +171,22 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
 
 def make_events(press_starts, press_lengths, ldata):
     """
-    Event = [classification, flag, press_length, timestamp, press_start, dipped lat.dist. interval]
+    Event = [classification, flag, press_length, timestamp, event_start, dipped lat.dist. interval]
 
     classification  -- 1 for overtaking, -1 for oncoming
     flag            -- further information about how we arrived at the classification
-                        0: press length > 10, so quite sure it's overtaking
-                        1: only 1 event around the button press, so fairly sure that's it (whether overtake or oncoming)
-                        2: took closest event, both sides of button press have a distinct event
-                        3: many events around button press -- messy situation
+                        0: press length > 10 or < 7, so we're confident it's overtaking and oncoming respectively
+                        1: single event around the button press, so fairly sure that's it (cross-check with press length for overtake or oncoming)
+                        2: many events to one side of the button press -- one-sided messy situation
+                        3: took closest event, both sides of button press have distinct events -- double-sided situation
                         4: shared event between two button presses [error!]
     """
 
-    flag0 = 0
-    flag1 = 1
-    flag2 = 2
-    flag3 = 3
-    flag4 = 4
+    flag_confident = 0
+    flag_one_sided_single = 1
+    flag_one_sided_messy = 2
+    flag_double_sided = 3
+    flag_shared = 4
 
     events = list()  # will hold overtaking/oncoming events
 
@@ -224,28 +224,46 @@ def make_events(press_starts, press_lengths, ldata):
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = 1
-            flag = flag0
+            flag = flag_confident
+
+        elif press_lengths[i] <= 7:
+            if len(aintervals) == 0:
+                raise IndexError(
+                    "No oncoming intervals found for this button press of length",
+                    press_lengths[i],
+                )
+            interval_info = aintervals[0]
+            event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
+            classification = -1
+            flag = flag_confident
 
         elif len(bintervals) == 0:  # oncoming
             interval_info = aintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = -1
-            flag = flag1
+
+            flag = flag_one_sided_single
+            # if many "events" around the press, mark as one-sided messy
+            if len(aintervals) > 2:
+                flag = flag_one_sided_messy
 
         elif len(aintervals) == 0:  # overtaking
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = 1
-            flag = flag1
 
-        elif press_starts[i] - bintervals[0][0] < aintervals[0][0] - press_starts[i]:  # both binervals and aintervals exist!
+            flag = flag_one_sided_single
+            # if many "events" around the press, mark as one-sided messy
+            if len(bintervals) > 2:
+                flag = flag_one_sided_messy
+
+        # both binervals and aintervals exist
+        elif press_starts[i] - bintervals[0][0] < aintervals[0][0] - press_starts[i]:
             # closest binterval is closer to button press than closest ainterval
             # assume that's what the button press was about
             interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            flag = 2
-            if len(bintervals) + len(aintervals) > 2:
-                flag = 3
+            flag = flag_double_sided
             classification = 1
 
         else:
@@ -253,16 +271,14 @@ def make_events(press_starts, press_lengths, ldata):
             # assume that's what the button press was about
             interval_info = aintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
-            flag = flag2
-            if len(bintervals) + len(aintervals) > 2:
-                flag = flag3
+            flag = flag_double_sided
             classification = -1
 
         events.append([classification] + [flag] + [press_length] + [event_timestamp] + interval_info)
         # correct flag if necessary
         if i > 1 and events[-1][3] == events[-2][3]:
-            events[-1][1] = 4  # mark them as shared events (by 2 different button presses)
-            events[-2][1] = 4
+            events[-1][1] = flag_shared
+            events[-2][1] = flag_shared
 
     return events
 
@@ -274,8 +290,6 @@ if __name__ == "__main__":
     ldata = make_ldata(csvr)  # CSV data as a list
 
     press_starts, press_lengths = get_press_lengths_and_starts(ldata)
-
-    print(press_starts)
 
     events = make_events(press_starts, press_lengths, ldata)
     for e in events:
