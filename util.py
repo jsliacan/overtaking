@@ -17,6 +17,28 @@ def get_box_files(logs_dir):
     return box_filenames
 
 
+def ensure_date_in_filenames(path_list):
+
+    for fpath in path_list:
+        lfpath = fpath.split("/")
+        if lfpath[-1][:8].isdigit():
+            continue
+        else:
+            lfpath[-1] = lfpath[-2] + "_" + lfpath[-1]
+            newpath = os.path.join(lfpath)
+            print("Renaming file", fpath, "to", newpath)
+            os.rename(fpath, newpath)
+
+
 if __name__ == "__main__":
 
-    print(get_box_files(constants.DATA_HOME))
+    for f in get_box_files(constants.DATA_HOME):
+        print(f)
+
+    print()
+    ensure_date_in_filenames(get_box_files(constants.DATA_HOME))
+
+    print("Added date to filenames whenever it was missing:")
+
+    for f in get_box_files(constants.DATA_HOME):
+        print(f)

@@ -169,9 +169,9 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
     return (bintervals, aintervals)
 
 
-def make_events(press_starts, press_lengths, ldata):
+def make_events(press_starts, press_lengths, ldata, date_string):
     """
-    Event = [classification, flag, press_length, timestamp, event_start, dipped lat.dist. interval]
+    Event = [classification, flag, press_length, date_string, timestamp, event_start, dipped lat.dist. interval]
 
     classification  -- 1 for overtaking, -1 for oncoming
     flag            -- further information about how we arrived at the classification
@@ -274,9 +274,9 @@ def make_events(press_starts, press_lengths, ldata):
             flag = flag_double_sided
             classification = -1
 
-        events.append([classification] + [flag] + [press_length] + [event_timestamp] + interval_info)
+        events.append([classification] + [flag] + [press_length] + [date_string] + [event_timestamp] + interval_info)
         # correct flag if necessary
-        if i > 1 and events[-1][3] == events[-2][3]:
+        if i > 1 and len(events) > 1 and events[-1][4] == events[-2][4]:
             events[-1][1] = flag_shared
             events[-2][1] = flag_shared
 
@@ -285,15 +285,19 @@ def make_events(press_starts, press_lengths, ldata):
 
 if __name__ == "__main__":
 
-    csv_file = os.path.join(constants.DATA_HOME, "20230112", "ANALOG31.TXT")
-    csvr = read_csv(csv_file)
-    ldata = make_ldata(csvr)  # CSV data as a list
+    dflist = util.get_box_files(constants.DATA_HOME)
+    util.ensure_date_in_filenames(dflist)  # renames files that don't contain date in filename
+    dflist = util.get_box_files(constants.DATA_HOME)  # compile a list of filenames again after renaming
 
-    press_starts, press_lengths = get_press_lengths_and_starts(ldata)
+    for csv_file in dflist:
+        csvr = read_csv(csv_file)
+        ldata = make_ldata(csvr)  # CSV data as a list
 
-    events = make_events(press_starts, press_lengths, ldata)
-    for e in events:
-        print(e)
+        press_starts, press_lengths = get_press_lengths_and_starts(ldata)
+        date_string = csv_file.split("/")[-1][:8]
+        events = make_events(press_starts, press_lengths, ldata, date_string)
+        for e in events:
+            print(e)
 
     """
     box_files = util.get_box_files(constants.DATA_HOME)
