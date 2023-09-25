@@ -25,7 +25,8 @@ def ensure_date_in_filenames(path_list):
             continue
         else:
             lfpath[-1] = lfpath[-2] + "_" + lfpath[-1]
-            newpath = os.path.join(lfpath)
+            print(lfpath)
+            newpath = os.path.join(*lfpath)
             print("Renaming file", fpath, "to", newpath)
             os.rename(fpath, newpath)
 
