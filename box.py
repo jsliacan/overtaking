@@ -102,7 +102,10 @@ def get_next_closest_timestamp(ldata, line_number):
 
     timestamp = ""
 
-    for j in range(22):  # there's a timestamp within every 22 rows
+    # there *should be* a timestamp within every 22 rows, but sometimes that's 23 rows :/
+    # example: 20221227, there are 22 rows strictly between timestamps at 382927 and 382950
+    # make range 25 rows long
+    for j in range(25):
         timestamp = ldata[line_number + j][0].strip()
         if timestamp != "":
             break
@@ -295,6 +298,7 @@ if __name__ == "__main__":
 
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
         date_string = csv_file.split("/")[-1][:8]
+
         events = make_events(press_starts, press_lengths, ldata, date_string)
         for e in events:
             print(e)
