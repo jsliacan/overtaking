@@ -1,10 +1,8 @@
-import os
-import csv
 import constants, util
 import matplotlib.pyplot as plt
 
 ldata = []  # will hold contents of the CSV file in list format
-
+all_events = [] # will hold all events from the data
 
 def get_first_minimum(seq):
     """Returns the first minimum int it encounters in the list seq."""
@@ -16,25 +14,14 @@ def get_first_minimum(seq):
             return fmin
     return fmin
 
-
-def read_csv(filename):
-    """Read CSV file and return a reader."""
-    csv_file = open(filename, newline="")
-
-    line = csv_file.readline()
-    csv_reader = csv.reader(csv_file, delimiter="\t")
-    if "," in line:
-        csv_reader = csv.reader(csv_file, delimiter=",")
-
-    return csv_reader
-
-
 def make_ldata(csv_reader):
 
     ldata = list(csv_reader)
     for i in range(1, len(ldata)):
-        ldata[i][4] = int(ldata[i][4].strip())
-        ldata[i][5] = int(ldata[i][5].strip())
+        stripped4 = ldata[i][4].strip()
+        stripped5 = ldata[i][5].strip()
+        ldata[i][4] = int(stripped4)
+        ldata[i][5] = int(stripped5)
 
     return ldata
 
@@ -53,20 +40,21 @@ def correct_press_lengths_and_starts(press_starts, press_lengths):
     while True:
         for i in range(num_presses - offset):
 
-            # if button presses are too close to each other
-            if press_starts[i] + press_lengths[i] >= press_starts[i + 1] - 2:
-                # keep press_start of the first press
-                # make its length sum of the two presses plus gap between them
-                press_lengths[i] = press_starts[i + 1] - press_starts[i] + press_lengths[i + 1]
-                press_lengths.pop(i + 1)  # remove the second press
-                press_starts.pop(i + 1)  # remove the second press
-                offset += 1
+            
+            if i+1 < len(press_starts): # check if index in bounds
+                # if button presses are too close to each other
+                if press_starts[i] + press_lengths[i] >= press_starts[i+1] - 2:
+                    # keep press_start of the first press
+                    # make its length sum of the two presses plus gap between them
+                    press_lengths[i] = press_starts[i + 1] - press_starts[i] + press_lengths[i + 1]
+                    press_lengths.pop(i + 1)  # remove the second press
+                    press_starts.pop(i + 1)  # remove the second press
+                    offset += 1
 
         if num_presses == original_num_presses:  # if no changes, done.
             break
-        else:
-            # if concatenated some presses, repeat.
-            original_num_presses = num_presses
+        # if concatenated some presses, repeat.
+        original_num_presses = num_presses
 
     return (press_starts, press_lengths)
 
@@ -171,10 +159,27 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
 
     return (bintervals, aintervals)
 
+def pick_leftmost_interval_of_length(intervals, min_length):
+    """
+    Pick leftmost interval from the list of bintervals/aintervals
+    whose length is at least min_length, or longest possible.
+    """
+    
+    for interval in intervals:
+        if len(interval[2]) > min_length:
+            return interval
+    # if no interval is longer than min_length return longest
+    maxlen = 0
+    candidate_interval = []
+    for interval in intervals:
+        if interval[1] > maxlen:
+            maxlen = interval[1]
+            candidate_interval = interval
+    return candidate_interval
 
 def make_events(press_starts, press_lengths, ldata, date_string):
     """
-    Event = [classification, flag, press_length, date_string, timestamp, event_start, dipped lat.dist. interval]
+    Event = [classification, flag, press_length, date_string, timestamp, event_start, interval_length, interval]
 
     classification  -- 1 for overtaking, -1 for oncoming
     flag            -- further information about how we arrived at the classification
@@ -191,7 +196,7 @@ def make_events(press_starts, press_lengths, ldata, date_string):
     flag_double_sided = 3
     flag_shared = 4
 
-    events = list()  # will hold overtaking/oncoming events
+    events = []  # will hold overtaking/oncoming events
 
     for i in range(len(press_starts)):
 
@@ -224,7 +229,8 @@ def make_events(press_starts, press_lengths, ldata, date_string):
                     "No overtaking intervals found for this button press of length",
                     press_lengths[i],
                 )
-            interval_info = bintervals[0]
+            interval_info = pick_leftmost_interval_of_length(bintervals, 2)
+            #interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = 1
             flag = flag_confident
@@ -286,22 +292,63 @@ def make_events(press_starts, press_lengths, ldata, date_string):
     return events
 
 
-if __name__ == "__main__":
+def collate_events():
+    """
+    Run make_events() on data from all available files and compile the events into one long list (global var all_events).
+    """
+    # initialize header
+    header_str = "[classification, flag, press_length, date_string, timestamp, event_start, interval_length, interval]"    
+    all_events.append(header_str.strip("[]").split(", "))
 
+    # get data
     dflist = util.get_box_files(constants.DATA_HOME)
     util.ensure_date_in_filenames(dflist)  # renames files that don't contain date in filename
     dflist = util.get_box_files(constants.DATA_HOME)  # compile a list of filenames again after renaming
 
+    # process data
+    print("collating data...", flush=True)
     for csv_file in dflist:
-        csvr = read_csv(csv_file)
+
+        # TO REMOVE! See Issue #13 (https://github.com/jsliacan/overtaking/issues/13)
+        if "20230531" in csv_file:
+            continue
+        csvr = util.read_csv(csv_file)
         ldata = make_ldata(csvr)  # CSV data as a list
 
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
         date_string = csv_file.split("/")[-1][:8]
 
         events = make_events(press_starts, press_lengths, ldata, date_string)
-        for e in events:
-            print(e)
+        all_events.extend(events)
+
+        print(csv_file, flush=True)
+
+    print("done.")
+    return all_events
+
+
+
+if __name__ == "__main__":
+
+    # extract events from the data
+    my_events = collate_events()
+    util.write_to_csv_file("events.csv", my_events)
+
+    # plot hist of minimum overtaking distances (one for each identified event)
+    min_overtaking_dist = []
+    min_oncoming_dist = []
+    for event in my_events[1:]:
+        if event[0] == 1:
+            min_overtaking_dist.append(min(event[-1]))
+        elif event[0] == -1:
+            min_oncoming_dist.append(min(event[-1]))
+    
+    plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
+    plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
+    plt.legend(loc='upper right')
+    plt.show()
+    
+    # print(my_events)
 
     """
     box_files = util.get_box_files(constants.DATA_HOME)
@@ -310,7 +357,7 @@ if __name__ == "__main__":
 
     for csv_file in box_files:
         print(csv_file)
-        csvr = read_csv(csv_file)
+        csvr = util.read_csv(csv_file)
         ldata = make_ldata(csvr)
 
         # press lenghts/starts are already corrected for interrupts
