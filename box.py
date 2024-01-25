@@ -1,11 +1,21 @@
-import constants, util
+"""
+Python3 script for analyzing data files from the device measuring
+lateral-distance during overtaking.
+"""
+
 import matplotlib.pyplot as plt
+
+import constants
+import util
 
 ldata = []  # will hold contents of the CSV file in list format
 all_events = [] # will hold all events from the data
 
 def get_first_minimum(seq):
-    """Returns the first minimum int it encounters in the list seq."""
+    """
+    Returns the first minimum int it encounters in the list seq.
+    """
+
     fmin = seq[0]
     for t in seq:
         if t < fmin:
@@ -15,15 +25,18 @@ def get_first_minimum(seq):
     return fmin
 
 def make_ldata(csv_reader):
+    """
+    Given a CSV reader, extract data from the CSV file.
+    """
 
-    ldata = list(csv_reader)
-    for i in range(1, len(ldata)):
-        stripped4 = ldata[i][4].strip()
-        stripped5 = ldata[i][5].strip()
-        ldata[i][4] = int(stripped4)
-        ldata[i][5] = int(stripped5)
+    ldat = list(csv_reader)
+    for i in range(1, len(ldat)):
+        stripped4 = ldat[i][4].strip()
+        stripped5 = ldat[i][5].strip()
+        ldat[i][4] = int(stripped4)
+        ldat[i][5] = int(stripped5)
 
-    return ldata
+    return ldat
 
 
 def correct_press_lengths_and_starts(press_starts, press_lengths):
@@ -40,7 +53,6 @@ def correct_press_lengths_and_starts(press_starts, press_lengths):
     while True:
         for i in range(num_presses - offset):
 
-            
             if i+1 < len(press_starts): # check if index in bounds
                 # if button presses are too close to each other
                 if press_starts[i] + press_lengths[i] >= press_starts[i+1] - 2:
@@ -59,14 +71,18 @@ def correct_press_lengths_and_starts(press_starts, press_lengths):
     return (press_starts, press_lengths)
 
 
-def get_press_lengths_and_starts(ldata):
+def get_press_lengths_and_starts(ldat):
+    """
+    Infer button presses from the data file and save start and
+    length of each of them in two lists.
+    """
 
-    press_lengths = list()
-    press_starts = list()
+    press_lengths = []
+    press_starts = []
     len_press = 0
 
     i = 0
-    for row in ldata:
+    for row in ldat:
 
         if row[5] == 1:
             if len_press == 0:
@@ -114,7 +130,8 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
 
     OUTPUT:
 
-    pair of lists - low-lateral-dist intervals before button press, and low-lateral-dist intervals after button press.
+    pair of lists - low-lateral-dist intervals before button press,
+    and low-lateral-dist intervals after button press.
     """
 
     dist = ldata[ps][4]
@@ -164,7 +181,7 @@ def pick_leftmost_interval_of_length(intervals, min_length):
     Pick leftmost interval from the list of bintervals/aintervals
     whose length is at least min_length, or longest possible.
     """
-    
+  
     for interval in intervals:
         if len(interval[2]) > min_length:
             return interval
@@ -294,10 +311,14 @@ def make_events(press_starts, press_lengths, ldata, date_string):
 
 def collate_events():
     """
-    Run make_events() on data from all available files and compile the events into one long list (global var all_events).
+    Run make_events() on data from all available files and compile
+    the events into one long list (global var all_events).
     """
+
     # initialize header
-    header_str = "[classification, flag, press_length, date_string, timestamp, event_start, interval_length, interval]"    
+    header_str = "[classification, flag, press_length, date_string,\
+                   timestamp, event_start, interval_length, interval]"
+
     all_events.append(header_str.strip("[]").split(", "))
 
     # get data
@@ -314,7 +335,6 @@ def collate_events():
             continue
         csvr = util.read_csv(csv_file)
         ldata = make_ldata(csvr)  # CSV data as a list
-
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
         date_string = csv_file.split("/")[-1][:8]
 
@@ -342,12 +362,16 @@ if __name__ == "__main__":
             min_overtaking_dist.append(min(event[-1]))
         elif event[0] == -1:
             min_oncoming_dist.append(min(event[-1]))
+
+    press_lengths = [event[2] for event in my_events[1:]]
     
+
+    """
     plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
     plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
     plt.legend(loc='upper right')
     plt.show()
-    
+    """
     # print(my_events)
 
     """
