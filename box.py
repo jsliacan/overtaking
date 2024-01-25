@@ -352,7 +352,7 @@ if __name__ == "__main__":
 
     # extract events from the data
     my_events = collate_events()
-    util.write_to_csv_file("events.csv", my_events)
+    util.write_to_csv_file("data/events.csv", my_events)
 
     # plot hist of minimum overtaking distances (one for each identified event)
     min_overtaking_dist = []
@@ -362,32 +362,9 @@ if __name__ == "__main__":
             min_overtaking_dist.append(min(event[-1]))
         elif event[0] == -1:
             min_oncoming_dist.append(min(event[-1]))
-
-    press_lengths = [event[2] for event in my_events[1:]]
     
-
-    """
     plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
     plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
     plt.legend(loc='upper right')
-    plt.show()
-    """
-    # print(my_events)
+    plt.savefig("figures/OT-vs-OC_events-hist.png")
 
-    """
-    box_files = util.get_box_files(constants.DATA_HOME)
-
-    all_press_lengths = []
-
-    for csv_file in box_files:
-        print(csv_file)
-        csvr = util.read_csv(csv_file)
-        ldata = make_ldata(csvr)
-
-        # press lenghts/starts are already corrected for interrupts
-        press_starts, press_lengths = get_press_lengths_and_starts(ldata)
-        all_press_lengths += press_lengths
-
-    plt.hist(all_press_lengths, bins=50)
-    plt.show()
-    """
