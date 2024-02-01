@@ -2,10 +2,10 @@ from garmin_fit_sdk import Decoder, Stream
 
 
 import os
-import constants
+import src.constants
 
 
-def main():
+def radar_decode():
 
     fit_file = os.path.join(constants.DATA_HOME,
                             "20230112", "20230112_Forerunner645.fit")
@@ -25,7 +25,3 @@ def main():
             # print timestamp when radar_current was incremented
             print(count, record['timestamp'])
             prev += 1
-
-
-if __name__ == "__main__":
-    main()

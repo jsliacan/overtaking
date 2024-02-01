@@ -1,4 +1,4 @@
-classification,flag,press_length,date_string,                  timestamp,event_start,interval_length,interval
+classification,flag,press_length,date_string,timestamp,event_start,interval_length,interval
 -1,0,5,20230112,18:49:38,20907,5,"[439, 439, 441, 449, 449]"
 1,0,30,20230112,18:49:59,21354,15,"[314, 302, 299, 297, 299, 299, 299, 299, 297, 297, 294, 297, 302, 307, 396]"
 -1,1,9,20230112,18:51:53,23755,6,"[304, 304, 304, 307, 330, 535]"
