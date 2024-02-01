@@ -2,13 +2,37 @@
 
 Python project with code analyzing overtaking distances.
 
-The assumption is that the data are structured as shared, but `BikeLogs` folder is placed in `$(HOME)/Downloads`. If not the case, modify `constants.py` so that `DATA_HOME` variable is the expansion of the correct location. Use `~` for `$(HOME)` (user's home dir).
+The assumption is that the data is structured as follows:
+
+``` text
+BikeLogs
+	|---- 20221218
+	|          |--- 20221218_ANALOG18.TXT
+	|          |--- 20221218_Forerunner645.fit
+	|          |--- 20221218_Wahoo.fit
+	|---- 20230116
+	|          |--- 20230116_ANALOG18.TXT
+	|          |--- 20230116_Forerunner645.fit
+	|          |--- 20230116_Wahoo.fit
+```
+
+and that the `BikeLogs` folder is located in `$(HOME)/Downloads`. If you want your `BikeLogs` folder elsewhere, modify values in `src/constants.py`.
 
 ## Example
-From date `20230112`.
 
-Data from the box (classification: -1 oncoming, 1 overtaking, 0 didn't find any significant dip in lat distance). Same output can by obtained by running `python3 box.py`.
+Clone this project and navigate to it
+
+``` bash
+$ git clone https://github.com/jsliacan/overtaking.git
+$ cd overtaking
 ```
+From here, you can type `python3 .` to run the script in `__main__.py`. The uncommented section will run `collate_event()` and print them one by one.
+
+## Events
+
+The list of events looks a follows:
+
+``` csv
 classification,flag,press_length,date_string,timestamp,event_start,interval_length,interval
 -1,0,5,20230112,18:49:38,20907,5,"[439, 439, 441, 449, 449]"
 1,0,30,20230112,18:49:59,21354,15,"[314, 302, 299, 297, 299, 299, 299, 299, 297, 297, 294, 297, 302, 307, 396]"
@@ -26,30 +50,5 @@ classification,flag,press_length,date_string,timestamp,event_start,interval_leng
 -1,1,9,20230112,19:20:43,60180,5,"[215, 208, 205, 205, 210]"
 -1,0,5,20230112,19:28:13,69646,5,"[375, 365, 365, 370, 391]"
 -1,0,5,20230112,19:28:16,69706,5,"[391, 368, 368, 368, 375]"
-1,2,9,20230112,19:48:17,94962,1,[365]
 ```
 
-Data from the radar. Can be obtained by running `python3 radar.py`. Each timestamp stands for incremented radar counter.
-
-```
-1 2023-01-12 18:36:51+00:00
-2 2023-01-12 18:43:53+00:00
-3 2023-01-12 18:45:52+00:00
-4 2023-01-12 18:46:40+00:00
-5 2023-01-12 18:50:04+00:00
-6 2023-01-12 18:51:39+00:00
-7 2023-01-12 18:54:49+00:00
-8 2023-01-12 18:59:41+00:00
-9 2023-01-12 19:12:43+00:00
-10 2023-01-12 19:32:04+00:00
-11 2023-01-12 19:32:08+00:00
-12 2023-01-12 19:32:30+00:00
-13 2023-01-12 19:32:34+00:00
-14 2023-01-12 19:32:42+00:00
-15 2023-01-12 19:33:17+00:00
-16 2023-01-12 19:33:19+00:00
-17 2023-01-12 19:33:30+00:00
-18 2023-01-12 19:34:04+00:00
-19 2023-01-12 19:35:09+00:00
-20 2023-01-12 19:37:07+00:00
-```

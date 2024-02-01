@@ -5,8 +5,8 @@ lateral-distance during overtaking.
 
 import matplotlib.pyplot as plt
 
-import constants
-import util
+import src.constants as constants
+import src.util as util
 
 ldata = []  # will hold contents of the CSV file in list format
 all_events = [] # will hold all events from the data
@@ -316,8 +316,7 @@ def collate_events():
     """
 
     # initialize header
-    header_str = "[classification, flag, press_length, date_string,\
-                   timestamp, event_start, interval_length, interval]"
+    header_str = "[classification, flag, press_length, date_string, timestamp, event_start, interval_length, interval]"
 
     all_events.append(header_str.strip("[]").split(", "))
 
@@ -345,26 +344,3 @@ def collate_events():
 
     print("done.")
     return all_events
-
-
-
-if __name__ == "__main__":
-
-    # extract events from the data
-    my_events = collate_events()
-    util.write_to_csv_file("data/events.csv", my_events)
-
-    # plot hist of minimum overtaking distances (one for each identified event)
-    min_overtaking_dist = []
-    min_oncoming_dist = []
-    for event in my_events[1:]:
-        if event[0] == 1:
-            min_overtaking_dist.append(min(event[-1]))
-        elif event[0] == -1:
-            min_oncoming_dist.append(min(event[-1]))
-    
-    plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
-    plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
-    plt.legend(loc='upper right')
-    plt.savefig("figures/OT-vs-OC_events-hist.png")
-
