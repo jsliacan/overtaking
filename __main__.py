@@ -1,11 +1,12 @@
 """
-Script analyzing button press lengths.
+Script utilizing code in overtaking package
 """
 
 #! /usr/bin/python3
 
 from collections import Counter
 
+import csv
 import os
 import ast
 import json
@@ -16,6 +17,38 @@ from src import box, constants, radar, util
 
 
 # --------- Scripting --------
+
+# ------------
+# treat lat. distances that are too small to be realistic
+my_events = box.read_events_from_csvfile("data/events.csv")
+ot_events = [e for e in my_events if e[0] == 1]
+extreme_ot_events = [e for e in ot_events if min(e[-1])<100]
+
+filtered_ot_events = []
+for e in extreme_ot_events:
+    # remove all entries <40cm
+    while(min(e[-1]) < 40):
+        e[-1].remove(min(e[-1]))
+    # remove anomalies
+    ldl = e[-1]
+    for i in range(len(ldl)):
+        try:
+            if ldl[i] < ldl[i-1] - 50 and ldl[i] < ldl[i+1] - 50:
+                e[-1].remove(e[-1][i])
+        except:
+            continue
+
+    filtered_ot_events.append(e)
+
+for e in [e for e in filtered_ot_events if min(e[-1]) < 100]:
+    print(e)
+print(len([e for e in filtered_ot_events if min(e[-1]) < 100]))
+
+
+
+
+"""
+# ----------------- press lengths --------------
 # Load or compile tally of press lengths (bin size = 1)
 PRESSES_JSON = "data/press_lengths_counts.json"
 PRESSES_PNG = "figures/press_lengths_hist.png"
@@ -46,7 +79,6 @@ for event in my_events:
     print(event)
 print("Found", len(my_events), "events.")
 
-"""
 # -------------------------- TEST box.py ----------------------------
 # extract events from the data
 my_events = box.collate_events()
