@@ -2,7 +2,7 @@
 Python3 script for analyzing data files from the device measuring
 lateral-distance during overtaking.
 """
-
+import csv
 import matplotlib.pyplot as plt
 
 import src.constants as constants
@@ -10,6 +10,26 @@ import src.util as util
 
 ldata = []  # will hold contents of the CSV file in list format
 all_events = [] # will hold all events from the data
+
+def read_events_from_csvfile(filename):
+    """
+    Read in events that were already produced and saved to the 'data' folder, e.g. 'data/events.csv'.
+    Parse them back to list of lists, with everything in or list of ints, except timestamp (stays string).
+    """
+    my_events = []
+    with open(filename, encoding="utf-8") as csvfile:
+        csv_reader = csv.reader(csvfile, delimiter=',')
+        next(csv_reader) # skips header line
+        for line in csv_reader:
+            for i in [0,1,2,3,5,6]:
+                line[i] = int(line[i])
+            ldl = line[-1] # lat. dist. list
+            ldl = ldl[1:-1].split(", ")
+            ldl = [int(d) for d in ldl]
+            line[-1] = ldl
+            my_events.append(line)
+
+    return(my_events)
 
 def get_first_minimum(seq):
     """
