@@ -1,4 +1,5 @@
 *.pyc
 *~
-src/out/
 models/yolov8x.pt
+out/
+src/out/
