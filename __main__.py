@@ -4,9 +4,8 @@ Script utilizing code in overtaking package
 """
 
 #! /usr/bin/python3
-
-
-# --------- Scripting --------
+"""
+# --------- vehicle recognition from video ----------
 
 import os
 from ultralytics import YOLO
@@ -56,6 +55,7 @@ os.rename(os.path.join(OUT_FOLDER,"predicted_labels.csv"), os.path.join("data", 
 
 
 """
+# --------------- code related to the box --------------
 from collections import Counter
 
 import csv
@@ -64,38 +64,63 @@ import ast
 import json
 
 import matplotlib.pyplot as plt
+import networkx as nx
 
 from src import box, constants, radar, util, detect
 
 
 # ------------
-# treat lat. distances that are too small to be realistic
+# address lat. distances that are too small, e.g. in the following event
+# d = [510, 203, 205, 134, 200, 200, 200, 198, 195, 195, 78, 195, 195, 193, 60, 40, 129, 193, 193, 144, 198, 195, 116, 195, 195, 195, 160, 195, 152]
+
+# IDEA: convert the list to a graph: each lat dist is a vertex. If two
+# vertices are close to each other (e.g. <40cm), add an edge between
+# them. Then detect a community with Lovain algorithm based on
+# modularity measure. Keep the biggest component.
+
 my_events = box.read_events_from_csvfile("data/events.csv")
-ot_events = [e for e in my_events if e[0] == 1]
-extreme_ot_events = [e for e in ot_events if min(e[-1])<100]
+ot_events = [e for e in my_events if e[0] == 1] # overtaking only
+lat_distances = [e[-1] for e in ot_events]
+k = 0
+min_overtaking_dist = []
+for distances in lat_distances:
+    print("-"*20)
+    print(distances)
+    print("-"*20)
+    if len(distances) == 1:
+        # louvain can't handle 1 vertex graph
+        continue
+    nodes = range(len(distances))
+    G = nx.Graph()
+    G.add_nodes_from(nodes)
 
-filtered_ot_events = []
-for e in extreme_ot_events:
-    # remove all entries <40cm
-    while(min(e[-1]) < 40):
-        e[-1].remove(min(e[-1]))
-    # remove anomalies
-    ldl = e[-1]
-    for i in range(len(ldl)):
-        try:
-            if ldl[i] < ldl[i-1] - 50 and ldl[i] < ldl[i+1] - 50:
-                e[-1].remove(e[-1][i])
-        except:
-            continue
+    for i in nodes:
+        for j in nodes:
+            # self-loops mess it up
+            if i != j and abs(distances[i] - distances[j]) < 40:
+                   G.add_edge(i,j)
+    if len(G.edges()) == 0:
+        # can't divide by 0
+        continue
+    c = nx.community.louvain_communities(G)
+    lengths_c = [len(x) for x in c]
+    ix = lengths_c.index(max(lengths_c))
+    dists = []
+    nds = []
+    for i in c[ix]:
+        dists.append(distances[i])
+        nds.append(i)
+    min_overtaking_dist.append(min(dists))
 
-    filtered_ot_events.append(e)
+plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
+plt.savefig("figures/OT_filtered_events-hist.png")
 
-for e in [e for e in filtered_ot_events if min(e[-1]) < 100]:
-    print(e)
-print(len([e for e in filtered_ot_events if min(e[-1]) < 100]))
-
-"""
-
+# generate scatter plots for each OT event highlighting the lat.dist. values we keep
+#    plt.scatter(nodes, distances, c='b')
+#    plt.scatter(nds, dists, c='r')
+#    plt.savefig("out/figs/d"+str(k)+".png")
+#    plt.clf()
+#    k += 1
 
 """
 # ----------------- press lengths --------------
