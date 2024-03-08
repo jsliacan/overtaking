@@ -172,7 +172,7 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
             if ps - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
                 break
 
-            if before_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
+            if before_dist < 0.9 * dist:  # require at least 10% dip in lateral distance
                 binterval_length += 1
                 binterval_distances.insert(0, before_dist)
             else:
@@ -185,7 +185,7 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
         if pl < 10 and i < gap_to_next:
             after_dist = ldata[ps + i][4]
 
-            if after_dist < 0.9 * dist:  # require at least 20% dip in lateral distance
+            if after_dist < 0.9 * dist:  # require at least 10% dip in lateral distance
                 ainterval_length += 1
                 ainterval_distances.append(after_dist)
             else:
@@ -193,6 +193,29 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
                     aintervals.append([ps + i - ainterval_length, ainterval_length, ainterval_distances])
                     ainterval_length = 0
                     ainterval_distances = []
+
+    # POST-CORRECTION (bintervals only; overtakes)
+    # If the event ends after the button press begins, then the above search won't find it.
+    # If the event wasn't found (only length=1,2,3 lat.dist. dips found); then re-do search from end of button press.
+    if len(bintervals) > 0 and max([len(interval[2]) for interval in bintervals]) < 3:
+        dist = ldata[ps+pl][4]
+        bintervals = []
+        binterval_length = 0
+        binterval_distances = []
+        for i in range(100):
+        # then most likely, the real interval started before button press ended.
+        # re-run everything with button-press end, not start.
+            before_dist = ldata[ps+pl - i][4]
+            if ps+pl - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
+                break
+            if before_dist < 0.9 * dist:  # require at least 10% dip in lateral distance
+                binterval_length += 1
+                binterval_distances.insert(0, before_dist)
+            else:
+                if binterval_length > 0:
+                    bintervals.append([ps+pl - i, binterval_length, binterval_distances])
+                    binterval_length = 0
+                    binterval_distances = []
 
     return (bintervals, aintervals)
 
@@ -348,7 +371,7 @@ def collate_events():
     # process data
     print("collating data...", flush=True)
     for csv_file in dflist:
-
+        
         # TO REMOVE! See Issue #13 (https://github.com/jsliacan/overtaking/issues/13)
         if "20230531" in csv_file:
             continue
