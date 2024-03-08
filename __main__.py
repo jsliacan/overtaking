@@ -4,6 +4,9 @@ Script utilizing code in overtaking package
 """
 
 #! /usr/bin/python3
+
+
+
 """
 # --------- vehicle recognition from video ----------
 
@@ -52,7 +55,18 @@ df = pd.concat(lst)
 # Save the predicted text file to disk
 df.to_csv(os.path.join(OUT_FOLDER,"predicted_labels.csv"), index=False)
 os.rename(os.path.join(OUT_FOLDER,"predicted_labels.csv"), os.path.join("data", "predicted_labels.csv"))
+"""
 
+# --------------- solve 1-entry overtakes --------------
+from src import box
+
+my_events = box.read_events_from_csvfile("data/events.csv")
+ot_events = [e for e in my_events if e[0] == 1] # overtaking only
+singular_ot_events = [e for e in ot_events if len(e[-1]) == 1] # overtaking of length 1
+singular_events = [e for e in my_events if len(e[-1]) == 1] # overtaking of length 1
+
+print("OT events of length 1:", len(singular_ot_events))
+print("OT events with non-zero flag:", len([e for e in ot_events if e[1] > 0]))
 
 """
 # --------------- code related to the box --------------
@@ -80,15 +94,20 @@ from src import box, constants, radar, util, detect
 
 my_events = box.read_events_from_csvfile("data/events.csv")
 ot_events = [e for e in my_events if e[0] == 1] # overtaking only
-lat_distances = [e[-1] for e in ot_events]
+
 k = 0
+skipped = 0
+skipped_edges = 0
 min_overtaking_dist = []
-for distances in lat_distances:
-    print("-"*20)
-    print(distances)
-    print("-"*20)
+
+for event in ot_events:
+    distances = event[-1] # list of lat. distances for that event
+    # print(".", end='', flush=True)
     if len(distances) == 1:
+        print(event)
         # louvain can't handle 1 vertex graph
+        skipped += 1
+        k += 1
         continue
     nodes = range(len(distances))
     G = nx.Graph()
@@ -101,6 +120,8 @@ for distances in lat_distances:
                    G.add_edge(i,j)
     if len(G.edges()) == 0:
         # can't divide by 0
+        skipped_edges += 1
+        k += 1
         continue
     c = nx.community.louvain_communities(G)
     lengths_c = [len(x) for x in c]
@@ -111,17 +132,23 @@ for distances in lat_distances:
         dists.append(distances[i])
         nds.append(i)
     min_overtaking_dist.append(min(dists))
+#plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
+#plt.savefig("figures/OT_filtered_events-hist.png")
 
-plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
-plt.savefig("figures/OT_filtered_events-hist.png")
-
-# generate scatter plots for each OT event highlighting the lat.dist. values we keep
-#    plt.scatter(nodes, distances, c='b')
-#    plt.scatter(nds, dists, c='r')
-#    plt.savefig("out/figs/d"+str(k)+".png")
-#    plt.clf()
-#    k += 1
-
+    # generate scatter plots for each OT event highlighting the lat.dist. values we keep
+    plt.scatter(nodes, distances, c='b')
+    plt.scatter(nds, dists, c='r')
+    plt.ylim([100,500])
+    plt.savefig(os.path.join("out", "figs", str(event[3])+"_"+str(event[4])+"_"+str(event[5])+".png"))
+    plt.clf()
+    k += 1
+print()
+print("skipped:", skipped)
+print("skipped (no edges):", skipped_edges)
+print("total:", k)
+min_overtaking_dist.sort()
+print("min OT distances for each event, sorted:\n", min_overtaking_dist)
+"""
 """
 # ----------------- press lengths --------------
 # Load or compile tally of press lengths (bin size = 1)
@@ -153,25 +180,43 @@ my_events = box.collate_events()
 for event in my_events:
     print(event)
 print("Found", len(my_events), "events.")
-
+"""
+"""
 # -------------------------- TEST box.py ----------------------------
 # extract events from the data
+import os
+from src import box, util
+
+
+# [1, 2, 9, 20230112, '19:48:17', 94962, 1, [365]]
+# [1, 4, 29, 20221227, '14:33:53', 387031, 1, [243]]
+# [1, 0, 28, 20221224, '11:02:56', 123439, 1, [144]]
+# [1, 1, 9, 20221218, '09:29:42', 2104, 1, [370]]
+# [1, 0, 37, 20230119, '08:58:13', 155376, 1, [462]]
+# [1, 3, 8, 20230219, '10:05:38', 164892, 1, [368]]
+# [1, 3, 9, 20230219, '10:42:52', 211805, 1, [485]]
+# [1, 0, 31, 20230219, '12:59:49', 384818, 1, [71]]
+# [1, 3, 8, 20230305, '09:01:37', 168094, 1, [386]]
+# [1, 0, 38, 20230318, '12:08:04', 95322, 1, [91]]
+# [1, 0, 38, 20230318, '12:42:53', 139226, 1, [106]]
+
+
 my_events = box.collate_events()
-util.write_to_csv_file("data/events.csv", my_events)
+util.write_to_csv_file(os.path.join("data", "events.csv"), my_events)
 
 # plot hist of minimum overtaking distances (one for each identified event)
-min_overtaking_dist = []
-min_oncoming_dist = []
-for event in my_events[1:]:
-    if event[0] == 1:
-        min_overtaking_dist.append(min(event[-1]))
-    elif event[0] == -1:
-        min_oncoming_dist.append(min(event[-1]))
+# min_overtaking_dist = []
+# min_oncoming_dist = []
+# for event in my_events[1:]:
+#     if event[0] == 1:
+#         min_overtaking_dist.append(min(event[-1]))
+#     elif event[0] == -1:
+#         min_oncoming_dist.append(min(event[-1]))
 
-plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
-plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
-plt.legend(loc='upper right')
-plt.savefig("figures/OT-vs-OC_events-hist.png")
+# plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
+# plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
+# plt.legend(loc='upper right')
+# plt.savefig("figures/OT-vs-OC_events-hist.png")
 
 # -------------------------- TEST radar.py ----------------------------
 radar.radar_decode()
