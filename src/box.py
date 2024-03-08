@@ -25,8 +25,10 @@ def read_events_from_csvfile(filename):
                 line[i] = int(line[i])
             ldl = line[-1] # lat. dist. list
             ldl = ldl[1:-1].split(", ")
-            ldl = [int(d) for d in ldl]
-            line[-1] = ldl
+            line[-1] = []
+            if ldl != [""]:
+                ldl = [int(d) for d in ldl]
+                line[-1] = ldl
             my_events.append(line)
 
     return(my_events)
