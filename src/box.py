@@ -61,20 +61,27 @@ def make_ldata(csv_reader):
 
 def correct_press_lengths_and_starts(press_starts, press_lengths):
     """
-    Check if any presses are only <2 rows apart. If yes, concatenate those presses.
+    1. Check if any presses are only <2 rows apart. If yes,
+    concatenate those presses. It is physically near-impossible to
+    press button 2x (on purpose) only 1/11s apart.
 
-    It is physically near-impossible to press button 2x (on purpose) only 1/11s apart.
+    2. Check if two *short* presses or two *long* presses are only 4-5
+    lines apart. If yes, discard the first press in such a pair. This
+    was a "double-press" to indicate a long vehicle. We won't be doing
+    double-presses in the future.
+
+    3. Discard presses of length=1. Physically impossible to do on purpose.
     """
 
+    # Check for case 1.
     original_num_presses = len(press_starts)
     num_presses = original_num_presses
     offset = 2  # offset=1 is simply due to indexing from 0 to len-offset
-
     while True:
         for i in range(num_presses - offset):
 
             if i+1 < len(press_starts): # check if index in bounds
-                # if button presses are too close to each other
+
                 if press_starts[i] + press_lengths[i] >= press_starts[i+1] - 2:
                     # keep press_start of the first press
                     # make its length sum of the two presses plus gap between them
@@ -87,6 +94,26 @@ def correct_press_lengths_and_starts(press_starts, press_lengths):
             break
         # if concatenated some presses, repeat.
         original_num_presses = num_presses
+
+    # Check for case 2.
+    i = 0
+    while i < len(press_starts)-1:
+        if press_starts[i] + press_lengths[i] >= press_starts[i+1] - 4:
+            if press_lengths[i] < 10 and press_lengths[i+1] < 10:
+                press_lengths.pop(i)
+                press_starts.pop(i)
+            elif press_lengths[i] > 10 and press_lengths[i+1] > 10:
+                press_lengths.pop(i)
+                press_starts.pop(i)
+        i += 1
+
+    # Check for case 3.
+    i = 0
+    while i < len(press_starts)-1:
+        if press_lengths[i] == 1:
+            press_lengths.pop(i)
+            press_starts.pop(i)
+        i += 1
 
     return (press_starts, press_lengths)
 
@@ -165,8 +192,7 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
 
     for i in range(100):  # 100 is some max value (~4s), might replace later
 
-        # only look for overtaking events if press length is > 7
-        if pl > 7 and i < gap_to_prev:
+        if i < gap_to_prev:
 
             before_dist = ldata[ps - i][4]
             if ps - i < 1:  # need to avoid index out of range, although button press within first 5s is unlikely
@@ -181,8 +207,7 @@ def find_events_for_press(ps, pl, gap_to_prev, gap_to_next, ldata):
                     binterval_length = 0
                     binterval_distances = []
 
-        # don't look for oncoming events if press length is > 10
-        if pl < 10 and i < gap_to_next:
+        if i < gap_to_next:
             after_dist = ldata[ps + i][4]
 
             if after_dist < 0.9 * dist:  # require at least 10% dip in lateral distance
@@ -270,9 +295,11 @@ def make_events(press_starts, press_lengths, ldata, date_string):
         gap_to_next = 0
         gap_to_prev = 0
         if i == 0:
+            gap_to_prev = press_starts[i]
             gap_to_next = press_starts[i + 1] - press_starts[i]
         elif i == len(press_starts) - 1:
             gap_to_prev = press_starts[i] - press_starts[i - 1]
+            gap_to_next = len(ldata) - press_starts[i]
         else:
             gap_to_prev = press_starts[i] - press_starts[i - 1]
             gap_to_next = press_starts[i + 1] - press_starts[i]
@@ -283,31 +310,34 @@ def make_events(press_starts, press_lengths, ldata, date_string):
         if len(bintervals) + len(aintervals) == 0:
             continue
 
-        if press_lengths[i] >= 10:  # clear overtake
+        if press_lengths[i] >= 11:  # clear overtake
+            interval_info = [press_starts[i], 0, []]
             if len(bintervals) == 0:
-                raise IndexError(
-                    "No overtaking intervals found for this button press of length",
-                    press_lengths[i],
-                )
-            interval_info = pick_leftmost_interval_of_length(bintervals, 2)
+                # print("aintervals:", aintervals)
+                # print("bintervals:", bintervals)
+                print("No overtaking intervals found for the press starting at", press_starts[i], "with length", press_lengths[i])
+            else:
+                interval_info = pick_leftmost_interval_of_length(bintervals, 2)
             #interval_info = bintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = 1
             flag = flag_confident
 
-        elif press_lengths[i] <= 7:
+        elif press_lengths[i] <= 9:
+            interval_info = [press_starts[i], 0, []]
             if len(aintervals) == 0:
-                raise IndexError(
-                    "No oncoming intervals found for this button press of length",
-                    press_lengths[i],
-                )
-            interval_info = aintervals[0]
+                # print("aintervals:", aintervals)
+                # print("bintervals:", bintervals)
+                print("No oncoming intervals found for the press starting at", press_starts[i], "with length", press_lengths[i])
+            else:
+                interval_info = aintervals[0]
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = -1
             flag = flag_confident
 
         elif len(bintervals) == 0:  # oncoming
             interval_info = aintervals[0]
+            print(interval_info)
             event_timestamp = get_next_closest_timestamp(ldata, interval_info[0])
             classification = -1
 
@@ -380,10 +410,9 @@ def collate_events():
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
         date_string = csv_file.split("/")[-1][:8]
 
+        print(csv_file, flush=True)
         events = make_events(press_starts, press_lengths, ldata, date_string)
         all_events.extend(events)
-
-        print(csv_file, flush=True)
 
     print("done.")
     return all_events
