@@ -56,7 +56,7 @@ df = pd.concat(lst)
 df.to_csv(os.path.join(OUT_FOLDER,"predicted_labels.csv"), index=False)
 os.rename(os.path.join(OUT_FOLDER,"predicted_labels.csv"), os.path.join("data", "predicted_labels.csv"))
 """
-
+"""
 # --------------- solve 1-entry overtakes --------------
 from src import box
 
@@ -64,9 +64,14 @@ my_events = box.read_events_from_csvfile("data/events.csv")
 ot_events = [e for e in my_events if e[0] == 1] # overtaking only
 singular_ot_events = [e for e in ot_events if len(e[-1]) == 1] # overtaking of length 1
 singular_events = [e for e in my_events if len(e[-1]) == 1] # overtaking of length 1
+press_length_9 = [e for e in my_events if e[2] == 9]
 
+for e in press_length_9:
+    print(e)
+    
 print("OT events of length 1:", len(singular_ot_events))
 print("OT events with non-zero flag:", len([e for e in ot_events if e[1] > 0]))
+"""
 
 """
 # --------------- code related to the box --------------
@@ -181,7 +186,7 @@ for event in my_events:
     print(event)
 print("Found", len(my_events), "events.")
 """
-"""
+
 # -------------------------- TEST box.py ----------------------------
 # extract events from the data
 import os
@@ -200,10 +205,12 @@ from src import box, util
 # [1, 0, 38, 20230318, '12:08:04', 95322, 1, [91]]
 # [1, 0, 38, 20230318, '12:42:53', 139226, 1, [106]]
 
-
 my_events = box.collate_events()
 util.write_to_csv_file(os.path.join("data", "events.csv"), my_events)
 
+for event in my_events:
+    if event[-2] == 0:
+        print(event)
 # plot hist of minimum overtaking distances (one for each identified event)
 # min_overtaking_dist = []
 # min_oncoming_dist = []
@@ -218,6 +225,7 @@ util.write_to_csv_file(os.path.join("data", "events.csv"), my_events)
 # plt.legend(loc='upper right')
 # plt.savefig("figures/OT-vs-OC_events-hist.png")
 
+"""
 # -------------------------- TEST radar.py ----------------------------
 radar.radar_decode()
 
