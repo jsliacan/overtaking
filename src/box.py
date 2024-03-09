@@ -52,7 +52,18 @@ def make_ldata(csv_reader):
     """
 
     ldat = list(csv_reader)
-    for i in range(1, len(ldat)):
+
+    # If this is a new file with Date field as the leftmost field (13 fields)
+    # Delete the entire first column to match the earlier files
+    if len(ldat[0]) == 13:
+        print("Discarding the first column: 'Date' to align with earlier file structure.", flush=True)
+        for i in range(len(ldat)):
+            for j in range(1, len(ldat[i])):
+                ldat[i][j-1] = ldat[i][j]
+            ldat[i] = ldat[i][:-1]
+
+        
+    for i in range(len(ldat)):
         stripped4 = ldat[i][4].strip()
         stripped5 = ldat[i][5].strip()
         ldat[i][4] = int(stripped4)
@@ -403,16 +414,12 @@ def collate_events():
     # process data
     print("collating data...", flush=True)
     for csv_file in dflist:
-        
-        # TO REMOVE! See Issue #13 (https://github.com/jsliacan/overtaking/issues/13)
-        if "20230531" in csv_file:
-            continue
+        print(csv_file, flush=True)
         csvr = util.read_csv(csv_file)
         ldata = make_ldata(csvr)  # CSV data as a list
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
         date_string = csv_file.split("/")[-1][:8]
 
-        print(csv_file, flush=True)
         events = make_events(press_starts, press_lengths, ldata, date_string)
         all_events.extend(events)
 
