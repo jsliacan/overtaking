@@ -136,4 +136,44 @@ def dispersion_score(L):
 
     return disp_score
 
-                
+def strip_and_split(part, lat_dists, threshold):
+    """
+    INPUT:
+    part      - a list representing a part in a partition of vertices (indices corresponding to values in lat_dists
+    lat_dists - a list of lateral distances associated with a certain button press
+    threshold - number of lines between values in part that warrant a split into subparts
+
+    OUTPUT:
+    subparts  - a list of lists, each of which is a subpart of part
+    """
+
+    subparts = []
+    part.sort() # ensure
+
+    # split part into subparts each separated with >10 lines from another one
+    sp = []
+    for i in range(len(part)-1):
+        sp.append(part[i])
+        if i+1 == len(part)-1:
+            if part[i+1]-part[i] > threshold:
+                subparts.append(sp)
+                subparts.append([part[i+1]])
+                sp = []
+            else:
+                sp.append(part[i+1])
+                subparts.append(sp)
+        else:
+            if part[i+1]-part[i] > threshold:
+                subparts.append(sp)
+                sp = []
+
+    # discard subparts of length 4 or less
+    no_tiny_subparts = []
+    for sp in subparts:
+        if len(sp) > 4:
+            no_tiny_subparts.append(sp)
+
+    # print("orig. part:", part)
+    # print("subparts  :", subparts)
+    # print("no_tiny   :", no_tiny_subparts)
+    return no_tiny_subparts

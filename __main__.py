@@ -27,7 +27,7 @@ for csv_file in dflist:
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
     date_string = csv_file.split("/")[-1][:8]
-
+    
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
     
     for j, b_parts in enumerate(b_partitions):
@@ -52,24 +52,21 @@ for csv_file in dflist:
             lp.sort() # should already be sorted
 
             # skip the maxed-out readings
-            if min([lat_dists[x] for x in p]) > 500:
+            if min([lat_dists[x] for x in p]) > 450:
                 continue
             
             # skip the readings stuck too low
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
 
-            # only take 1st part of a partition if there's a big gap in time
-            # TODO: append the latter part back to partitions, and adjust part_and_size_pairs.
-            for i in range(1,s):
-                if lp[i]-lp[i-1] > 10:
-                    s = i
-                    lp = lp[:s]
-                    break
-            
-            # not a real part
-            if s < 3: 
+            # Split part into subparts >8 lines apart
+            # Discard tiny subparts
+            subparts = mod.strip_and_split(lp, lat_dists, 8)
+            if len(subparts) == 0:
                 continue
+            lp = subparts[0]
+            s = len(lp)
+            
                 
             # --- max clique method ----
             G = nx.Graph()
