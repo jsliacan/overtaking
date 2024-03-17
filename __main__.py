@@ -27,7 +27,7 @@ for csv_file in dflist:
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
     date_string = csv_file.split("/")[-1][:8]
-    
+
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
     
     for j, b_parts in enumerate(b_partitions):
@@ -50,14 +50,6 @@ for csv_file in dflist:
 
             lp = list(p)
             lp.sort() # should already be sorted
-            
-            # only take 1st part of a partition if there's a big gap in time
-            # TODO: append the latter part back to partitions, and adjust part_and_size_pairs.
-            for i in range(1,s):
-                if lp[i]-lp[i-1] > 10:
-                    s = i
-                    lp = lp[:s]
-                    break
 
             # skip the maxed-out readings
             if min([lat_dists[x] for x in p]) > 500:
@@ -66,6 +58,14 @@ for csv_file in dflist:
             # skip the readings stuck too low
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
+
+            # only take 1st part of a partition if there's a big gap in time
+            # TODO: append the latter part back to partitions, and adjust part_and_size_pairs.
+            for i in range(1,s):
+                if lp[i]-lp[i-1] > 10:
+                    s = i
+                    lp = lp[:s]
+                    break
             
             # not a real part
             if s < 3: 
