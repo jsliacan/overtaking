@@ -100,6 +100,11 @@ def get_partitions(ldata, press_starts, press_lengths):
             amod.append(modularity)
 
         else:
+            # still need to append, as indices would get shifted
+            bcomms.append([])
+            bmod.append(-1)
+            acomms.append([])
+            amod.append(-1)
             print("ambiguous press length:", press_lengths[pi], flush=True)
 
     return (bcomms, acomms, bmod, amod)
