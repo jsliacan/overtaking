@@ -9,6 +9,8 @@ dflist = util.get_box_files(bikeLogs)
 util.ensure_date_in_filenames(dflist)
 dflist = util.get_box_files(bikeLogs)
 
+ot_events = []
+
 for csv_file in dflist:
     print(csv_file, flush=True)
     csvr = util.read_csv(csv_file)
@@ -17,11 +19,10 @@ for csv_file in dflist:
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
     date_string = csv_file.split("/")[-1][:8]
 
-    """
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
-    
+
     for j, b_parts in enumerate(b_partitions):
-        
+
         if b_modularities[j] == -1: # it's an oncoming case
             continue
 
@@ -32,7 +33,7 @@ for csv_file in dflist:
         press_gap = sum([s for s, p in part_and_size_pairs])
         lat_dists = [ldata[ps-x][4] for x in range(press_gap)]
         dispersion_score = mod.dispersion_score(lat_dists)
-                     
+
         plt.scatter(range(len(lat_dists)), lat_dists, c='b')
 
         # ---- process the partition -----
@@ -44,7 +45,7 @@ for csv_file in dflist:
             # skip the maxed-out readings
             if min([lat_dists[x] for x in p]) > 450:
                 continue
-            
+
             # skip the readings stuck too low
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
@@ -56,8 +57,8 @@ for csv_file in dflist:
                 continue
             lp = subparts[0]
             s = len(lp)
-            
-                
+
+
             # --- max clique method ----
             G = nx.Graph()
             G.add_nodes_from(lp)
@@ -73,21 +74,19 @@ for csv_file in dflist:
                     # make sure the vertex we include with the clique doesn't have a very small degree
                     if lat_dists[u] > v_ball[0] and lat_dists[u] < v_ball[1] and G.degree(u) > 0.7*len(mc):
                         additional_vertices.add(u)
-                
+
             ot = list(mc)+list(additional_vertices)
             ot_event = [date_string, ps, dispersion_score, pmod, len(ot), ot]
             ot_events.append(ot_event)
-            
+
             plt.scatter(ot, [lat_dists[x] for x in ot], c='r')
-            
+
             # --- end of max clique ----
 
             break # after getting to the OT event
-            
+
         plt.ylim([0,700])
-        plt.savefig(os.path.join("out", "mod", date_string+"_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(pmod)+"_disp="+str(dispersion_score)+"_clique.png"))
+        plt.savefig(os.path.join("gha", "out", "ot-figures", date_string+"_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(pmod)+"_disp="+str(dispersion_score)+"_clique.png"))
         plt.clf()
 
-util.write_to_csv_file(os.path.join("data", "ot_events.csv"), ot_events)
-
-        """
+util.write_to_csv_file(os.path.join("gha", "out", "ot-events.csv"), ot_events)

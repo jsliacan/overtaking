@@ -6,28 +6,39 @@ on:
   pull_request: {}
 
 jobs:
-  read-data:
+  make-events:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+
       - name: Set up python 3.x
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-          cache: 'pip3'
-        run: pip3 install -r requirements.txt
-     
+
+      - name: Install requirements
+        run: |
+          pip3 install networkx
+          pip3 install matplotlib
+
       - name: Process CSV files
         run: |
-          python gha/process-box.py
+          # create dirs which are in .gitignore
+          mkdir gha/out
+          mkdir gha/out/ot-figures
+          # copy to root folder so imports work
+          cp gha/process-box.py .
+          python process-box.py
+
+      - name: Package artifacts
+        run: zip -r ot-figures.zip gha/out/ot-figures/
 
       - name: Upload OT figures
         uses: actions/upload-artifact@v4
         with:
           name: OT-figures
-          path: gha/out/ot-figures/*.zip
+          path: ot-figures.zip
 
       - name: Upload OT events file
         uses: actions/upload-artifact@v4
