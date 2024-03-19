@@ -31,14 +31,11 @@ jobs:
           cp gha/process-box.py .
           python process-box.py
 
-      - name: Package artifacts
-        run: zip -r ot-figures.zip gha/out/ot-figures/
-
       - name: Upload OT figures
         uses: actions/upload-artifact@v4
         with:
           name: OT-figures
-          path: ot-figures.zip
+          path: gha/out/ot-figures
 
       - name: Upload OT events file
         uses: actions/upload-artifact@v4
