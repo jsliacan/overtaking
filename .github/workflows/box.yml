@@ -1,0 +1,36 @@
+name: Process Box
+
+on:
+  push:
+    branches: [ main ] 
+  pull_request: {}
+
+jobs:
+  read-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          cache: 'pip3'
+        run: pip3 install -r requirements.txt
+     
+      - name: Process CSV files
+        run: |
+          python gha/process-box.py
+
+      - name: Upload OT figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: OT-figures
+          path: gha/out/ot-figures/*.zip
+
+      - name: Upload OT events file
+        uses: actions/upload-artifact@v4
+        with:
+          name: OT-events
+          path: gha/out/ot-events.csv
