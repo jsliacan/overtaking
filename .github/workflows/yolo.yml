@@ -1,0 +1,45 @@
+name: Detect vehicles 
+
+on:
+  push:
+    branches: [ main ] 
+  pull_request: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up python 3.x
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install requirements
+        run: |
+          pip3 install pandas
+          pip3 install ultralytics
+          pip3 install torch torchvision
+
+      - name: Process images 
+        run: |
+          # create dirs which are in .gitignore
+          mkdir gha/out
+          mkdir gha/out/yolo-pix
+          # copy to root folder so imports work
+          cp gha/process-camera.py .
+          python process-camera.py
+
+      - name: Upload YOLO figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: YOLO-figures
+          path: gha/out/yolo-pix
+
+      - name: Upload YOLO text
+        uses: actions/upload-artifact@v4
+        with:
+          name: YOLO-text
+          path: gha/out/predicted-labels.csv
