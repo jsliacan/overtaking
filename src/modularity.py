@@ -138,6 +138,11 @@ def dispersion_score(L):
 
 def strip_and_split(part, lat_dists, threshold):
     """
+    If the part consists of multiple "events" (has a few horizontal parts with too much time separation)
+    then split the part into subparts. However, ignore subparts that are too small (<4 in length). Except if
+    it's the first part on the very left of the interval (contains index 0). Then keep that - it might correspond
+    to an event that overlaps with the button press.
+
     INPUT:
     part      - a list representing a part in a partition of vertices (indices corresponding to values in lat_dists
     lat_dists - a list of lateral distances associated with a certain button press
@@ -167,13 +172,13 @@ def strip_and_split(part, lat_dists, threshold):
                 subparts.append(sp)
                 sp = []
 
-    # discard subparts of length 4 or less
+    # discard subparts of length 3 or less, unless at the beginning (overlap with press)
     no_tiny_subparts = []
     for sp in subparts:
-        if len(sp) > 4:
+        if sp[0] == 0:
+            no_tiny_subparts.append(sp)
+            continue
+        if len(sp) > 3:
             no_tiny_subparts.append(sp)
 
-    # print("orig. part:", part)
-    # print("subparts  :", subparts)
-    # print("no_tiny   :", no_tiny_subparts)
     return no_tiny_subparts
