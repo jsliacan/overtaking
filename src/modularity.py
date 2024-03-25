@@ -16,7 +16,7 @@ def run_louvain(nodes):
     modularity = 0
     
     n = len(nodes)
-    edges = [(i,j) for i in range(n-1) for j in range(i+1, n)]# if abs(bnodes[i]-bnodes[j])<40] # and j-i<60
+    edges = [(i,j) for i in range(n-1) for j in range(i+1, n)]
 
     G = nx.Graph()
     G.add_nodes_from(range(n))
@@ -27,7 +27,8 @@ def run_louvain(nodes):
     for i in range(n-1):
         for j in range(i+1,n):
             d = abs(nodes[i]-nodes[j])
-            if d < 40: # weight edge at 1 if nodes within 40cm of each other
+            # weigh edge 1 if vertices apart <40cm and 15/22s
+            if d < 40 and j-i<15: 
                 w = 1
             else:
                 w = 0
@@ -105,7 +106,7 @@ def get_partitions(ldata, press_starts, press_lengths):
             bmod.append(-1)
             acomms.append([])
             amod.append(-1)
-            print("ambiguous press length:", press_lengths[pi], flush=True)
+            print("ambiguous press length:", press_lengths[pi], "starts at:", press_starts[pi], flush=True)
 
     return (bcomms, acomms, bmod, amod)
 

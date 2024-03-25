@@ -27,7 +27,7 @@ for csv_file in dflist:
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
     date_string = csv_file.split("/")[-1][:8]
-    
+
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
     
     for j, b_parts in enumerate(b_partitions):
@@ -58,7 +58,7 @@ for csv_file in dflist:
             # skip the readings stuck too low
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
-
+            
             # Split part into subparts >8 lines apart
             # Discard tiny subparts
             subparts = mod.strip_and_split(lp, lat_dists, 8)
@@ -66,13 +66,11 @@ for csv_file in dflist:
                 continue
             lp = subparts[0]
             s = len(lp)
-            
-                
+
             # --- max clique method ----
             G = nx.Graph()
             G.add_nodes_from(lp)
-
-            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<40])
+            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<35 and lp[y]-lp[x]<15])
             mc = nx.approximation.max_clique(G)
             additional_vertices = set()
             for v in mc:
@@ -81,10 +79,14 @@ for csv_file in dflist:
                     if u in mc:
                         continue
                     # make sure the vertex we include with the clique doesn't have a very small degree
-                    if lat_dists[u] > v_ball[0] and lat_dists[u] < v_ball[1] and G.degree(u) > 0.7*len(mc):
+                    if lat_dists[u] > v_ball[0] and lat_dists[u] < v_ball[1] and G.degree(u) > 0.8*len(mc):
                         additional_vertices.add(u)
                 
             ot = list(mc)+list(additional_vertices)
+            # if we ended up with a part that's too small, go to the next one
+            if len(ot) < 4:
+                continue
+            
             ot_event = [date_string, ps, dispersion_score, pmod, len(ot), ot]
             ot_events.append(ot_event)
             
