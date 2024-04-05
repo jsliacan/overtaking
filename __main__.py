@@ -22,14 +22,14 @@ ot_events = []
 
 for csv_file in dflist:
     print(csv_file, flush=True)
+    date_string = csv_file.split("/")[-1][:8]
     csvr = util.read_csv(csv_file)
     ldata = box.make_ldata(csvr)  # CSV data as a list
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
-    date_string = csv_file.split("/")[-1][:8]
 
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
-    
+
     for j, b_parts in enumerate(b_partitions):
         
         if b_modularities[j] == -1: # it's an oncoming case
@@ -58,6 +58,9 @@ for csv_file in dflist:
             # skip the readings stuck too low
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
+
+            """
+            print("before strip", ps, lp)
             
             # Split part into subparts >8 lines apart
             # Discard tiny subparts
@@ -66,6 +69,7 @@ for csv_file in dflist:
                 continue
             lp = subparts[0]
             s = len(lp)
+            """
 
             # --- max clique method ----
             G = nx.Graph()
@@ -83,8 +87,10 @@ for csv_file in dflist:
                         additional_vertices.add(u)
                 
             ot = list(mc)+list(additional_vertices)
+            
             # if we ended up with a part that's too small, go to the next one
-            if len(ot) < 4:
+            # unless it starts with index 0, then it could be overlapping with press: keep it
+            if ot[0] > 0 and len(ot) < 4:
                 continue
             
             ot_event = [date_string, ps, dispersion_score, pmod, len(ot), ot]
