@@ -9,8 +9,10 @@ Script utilizing code in overtaking package
 # --------- modularity ----------
 
 import os
+import statistics
 import matplotlib.pyplot as plt
 import networkx as nx
+from scipy import stats
 from src import box, constants, util
 from src import modularity as mod
 
@@ -19,15 +21,18 @@ util.ensure_date_in_filenames(dflist)
 dflist = util.get_box_files(constants.DATA_HOME)
 
 ot_events = []
+lds = []
 
 for csv_file in dflist:
     print(csv_file, flush=True)
     date_string = csv_file.split("/")[-1][:8]
+    if date_string == "20240330":
+        continue
     csvr = util.read_csv(csv_file)
     ldata = box.make_ldata(csvr)  # CSV data as a list
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
-
+    
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
 
     for j, b_parts in enumerate(b_partitions):
@@ -59,17 +64,11 @@ for csv_file in dflist:
             if max([lat_dists[x] for x in p]) < 50: 
                 continue
 
-            """
-            print("before strip", ps, lp)
-            
-            # Split part into subparts >8 lines apart
-            # Discard tiny subparts
-            subparts = mod.strip_and_split(lp, lat_dists, 8)
-            if len(subparts) == 0:
-                continue
-            lp = subparts[0]
+            #subparts = mod.strip_and_split(lp, lat_dists, 8)
+            #if len(subparts) == 0:
+            #    continue
+            #lp = subparts[0]
             s = len(lp)
-            """
 
             # --- max clique method ----
             G = nx.Graph()
@@ -95,44 +94,48 @@ for csv_file in dflist:
             
             ot_event = [date_string, ps, dispersion_score, pmod, len(ot), ot]
             ot_events.append(ot_event)
-            
+            lds.append([lat_dists[x] for x in ot])
+
             plt.scatter(ot, [lat_dists[x] for x in ot], c='r')
             
             # --- end of max clique ----
 
-            """
-            # --- re-run louvain method ----
-            G = nx.Graph()
-            G.add_nodes_from(list(p))
-            lp = list(p)
-            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<40])
-            if len(G.edges) == 0:
-                plt.scatter(lp, [lat_dists[x] for x in lp], c='r')
-                continue
-            # resolution <1 favors bigger parts
-            # resolution >1 favors smaller parts
-            fine_partition = nx.community.louvain_communities(G, resolution=1)
-            fine_pairs = [(len(x), x) for x in fine_partition]
-            fine_pairs.sort()
-            ot = fine_pairs.pop()
-            plt.scatter(list(ot[1]), [lat_dists[x] for x in ot[1]], c='r')
-
-            # --- end of re-run louvain ----
-
-
-            # --- do nothing else method ---
-            plt.scatter(list(p), [lat_dists[x] for x in p], c='r')
-            # --- end of do nothing else ---
-            """
-            
             break # after getting to the OT event
             
         plt.ylim([0,700])
         plt.savefig(os.path.join("out", "mod", date_string+"_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(pmod)+"_disp="+str(dispersion_score)+"_clique.png"))
         plt.clf()
 
+print("Number of OT events:", len(ot_events))
+
+lds_trimmed_means = [stats.trim_mean(ld, 0.1)-20 for ld in lds]
+lds_trimmed_mins = []
+for ld in lds:
+    a = round(0.1*len(ld))
+    ld.sort()
+    m = min(ld[a:])-20 # adjust for position of box (not on the outer side of the rider)
+    lds_trimmed_mins.append(m)
+
+lds_trimmed_mins.sort()
+count100 = 0
+count150 = 0
+for ld in lds_trimmed_mins:
+    if ld < 150:
+        count150 += 1
+        if ld < 100:
+            count100 += 1
+
+print("count100 =", count100)
+print("count150 =", count150)
+print("median =", statistics.median(lds_trimmed_mins))
+# run some basic stats & figs
+# plt.hist(lds_trimmed_mins, bins=50)
+# plt.show()
+
 util.write_to_csv_file(os.path.join("data", "ot_events.csv"), ot_events)
-        
+
+
+
 """
 # --------- vehicle recognition from video ----------
 
@@ -357,8 +360,13 @@ for event in my_events:
 """
 """
 # -------------------------- TEST radar.py ----------------------------
-radar.radar_decode()
-
+from src import radar
+#radar.radar_decode()
+all_events = radar.radar_unload()
+# radar.radar_events_to_csv("radar_out.csv", all_events)
+radar.plot_radar_data()
+"""
+"""
 # -------------------------- TEST util.py ----------------------------
 
 for f in util.get_box_files(constants.DATA_HOME):
