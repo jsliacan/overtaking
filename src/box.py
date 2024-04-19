@@ -415,10 +415,12 @@ def collate_events():
     print("collating data...", flush=True)
     for csv_file in dflist:
         print(csv_file, flush=True)
+        date_string = csv_file.split("/")[-1][:8]
+        if date_string == "20240330":
+            continue
         csvr = util.read_csv(csv_file)
         ldata = make_ldata(csvr)  # CSV data as a list
         press_starts, press_lengths = get_press_lengths_and_starts(ldata)
-        date_string = csv_file.split("/")[-1][:8]
 
         events = make_events(press_starts, press_lengths, ldata, date_string)
         all_events.extend(events)

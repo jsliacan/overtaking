@@ -5,7 +5,7 @@ Script utilizing code in overtaking package
 
 #! /usr/bin/python3
 
-
+"""
 # --------- modularity ----------
 
 import os
@@ -124,7 +124,13 @@ for csv_file in dflist:
         plt.clf()
 
 util.write_to_csv_file(os.path.join("data", "ot_events.csv"), ot_events)
+<<<<<<< Updated upstream
         
+=======
+"""
+
+
+>>>>>>> Stashed changes
 """
 # --------- vehicle recognition from video ----------
 
@@ -308,12 +314,12 @@ for event in my_events:
     print(event)
 print("Found", len(my_events), "events.")
 """
-"""
+
 # -------------------------- TEST box.py ----------------------------
 # extract events from the data
 import os
 from src import box, util
-
+import matplotlib.pyplot as plt
 
 # [1, 2, 9, 20230112, '19:48:17', 94962, 1, [365]]
 # [1, 4, 29, 20221227, '14:33:53', 387031, 1, [243]]
@@ -328,25 +334,23 @@ from src import box, util
 # [1, 0, 38, 20230318, '12:42:53', 139226, 1, [106]]
 
 my_events = box.collate_events()
-util.write_to_csv_file(os.path.join("data", "events.csv"), my_events)
+# util.write_to_csv_file(os.path.join("data", "events.csv"), my_events)
 
-for event in my_events:
-    if event[-2] == 0:
-        print(event)
 # plot hist of minimum overtaking distances (one for each identified event)
-# min_overtaking_dist = []
-# min_oncoming_dist = []
-# for event in my_events[1:]:
-#     if event[0] == 1:
-#         min_overtaking_dist.append(min(event[-1]))
-#     elif event[0] == -1:
-#         min_oncoming_dist.append(min(event[-1]))
+min_overtaking_dist = []
+min_oncoming_dist = []
+print("Starting to compile min overtaking distances")
+for event in my_events[1:]:
+    if event[0] == 1 and event[-2] > 0:
+        min_overtaking_dist.append(min(event[-1]))
+    elif event[0] == -1 and event[-2] > 0:
+        min_oncoming_dist.append(min(event[-1]))
 
-# plt.hist(min_overtaking_dist, alpha=0.5, label='overtaking', bins=50)
+plt.hist(min_overtaking_dist, bins=50)
 # plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
 # plt.legend(loc='upper right')
-# plt.savefig("figures/OT-vs-OC_events-hist.png")
-"""
+plt.savefig("figures/OT_events-hist_old-method.png")
+
 """
 # -------------------------- TEST radar.py ----------------------------
 radar.radar_decode()
