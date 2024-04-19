@@ -92,31 +92,6 @@ for csv_file in dflist:
             
             # --- end of max clique ----
 
-            """
-            # --- re-run louvain method ----
-            G = nx.Graph()
-            G.add_nodes_from(list(p))
-            lp = list(p)
-            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<40])
-            if len(G.edges) == 0:
-                plt.scatter(lp, [lat_dists[x] for x in lp], c='r')
-                continue
-            # resolution <1 favors bigger parts
-            # resolution >1 favors smaller parts
-            fine_partition = nx.community.louvain_communities(G, resolution=1)
-            fine_pairs = [(len(x), x) for x in fine_partition]
-            fine_pairs.sort()
-            ot = fine_pairs.pop()
-            plt.scatter(list(ot[1]), [lat_dists[x] for x in ot[1]], c='r')
-
-            # --- end of re-run louvain ----
-
-
-            # --- do nothing else method ---
-            plt.scatter(list(p), [lat_dists[x] for x in p], c='r')
-            # --- end of do nothing else ---
-            """
-            
             break # after getting to the OT event
             
         plt.ylim([0,700])
@@ -124,13 +99,7 @@ for csv_file in dflist:
         plt.clf()
 
 util.write_to_csv_file(os.path.join("data", "ot_events.csv"), ot_events)
-<<<<<<< Updated upstream
-        
-=======
 """
-
-
->>>>>>> Stashed changes
 """
 # --------- vehicle recognition from video ----------
 
@@ -318,6 +287,7 @@ print("Found", len(my_events), "events.")
 # -------------------------- TEST box.py ----------------------------
 # extract events from the data
 import os
+import statistics
 from src import box, util
 import matplotlib.pyplot as plt
 
@@ -350,6 +320,20 @@ plt.hist(min_overtaking_dist, bins=50)
 # plt.hist(min_oncoming_dist, alpha=0.5, label='oncoming', bins=50)
 # plt.legend(loc='upper right')
 plt.savefig("figures/OT_events-hist_old-method.png")
+
+print("number of overtakes =", len(min_overtaking_dist))
+print("median =", statistics.median(min_overtaking_dist))
+min_overtaking_dist.sort()
+under100 = 0
+under150 = 0
+for m in min_overtaking_dist:
+    if m < 150:
+        under150 += 1
+        if m < 100:
+            under100 += 1
+print("under100 =", under100)
+print("under150 =", under150)
+print()
 
 """
 # -------------------------- TEST radar.py ----------------------------
