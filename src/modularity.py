@@ -1,5 +1,8 @@
+import os
+
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 
 def run_louvain(nodes):
     """
@@ -50,16 +53,106 @@ def run_louvain(nodes):
 
     return (communities, modularity)
 
-    
-    
+def get_ot_events(date_string, ldata, press_starts, bcomm, bmod):
+    """
+    Given a partition (list of parts) returned by get_partitions()
+    return a list of overtaking (OT) events. Cleaned up and final.
+    Together with their metadata.
+    """
+
+    ot_events = []
+
+    partitions = bcomm # one for each button press (empty if even is OC)
+    modularities = bmod
+
+    for j, parts in enumerate(partitions):
+
+        # skip oncoming cases
+        if modularities[j] == -1:
+            continue
+
+        ps = press_starts[j]
+        modularity = modularities[j]
+        part_and_size_pairs = [(len(x), x) for x in parts]
+        part_and_size_pairs.sort(reverse=True) # sorts pairs by 1st item, i.e. size
+        press_gap = sum([s for s, p in part_and_size_pairs]) # length of interval we're looking at for this press
+        lat_dists = [ldata[ps-x][4] for x in range(press_gap)]
+
+        disp = dispersion_score(lat_dists)
+
+        # plot the lateral distances in the interval (all blue)
+        plt.scatter(range(len(lat_dists)), lat_dists, c='b')
+
+        # ---- process the partition -----
+        for s, p in part_and_size_pairs:
+
+            lp = list(p)
+            lp.sort() # should already be sorted
+
+            # skip the maxed-out readings
+            if min([lat_dists[x] for x in p]) > 450:
+                continue
+
+            # skip the readings stuck too low
+            if max([lat_dists[x] for x in p]) < 50: 
+                continue
+
+            #subparts = mod.strip_and_split(lp, lat_dists, 8)
+            #if len(subparts) == 0:
+            #    continue
+            #lp = subparts[0]
+            #s = len(lp)
+
+            # --- max clique method ----
+            # Take the largest clique from the candidate part
+            # and re-attach the vertices from that part which are
+            # adjacent to a large portion of the clique
+
+            G = nx.Graph()
+            G.add_nodes_from(lp)
+            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<35 and lp[y]-lp[x]<15])
+            mc = nx.approximation.max_clique(G)
+            additional_vertices = set()
+            for v in mc:
+                v_ball = [lat_dists[v]-30, lat_dists[v]+30]
+                for u in G.nodes:
+                    if u in mc:
+                        continue
+                    # make sure the vertex we include with the clique doesn't have a very small degree
+                    if lat_dists[u] > v_ball[0] and lat_dists[u] < v_ball[1] and G.degree(u) > 0.8*len(mc):
+                        additional_vertices.add(u)
+
+            ot = list(mc)+list(additional_vertices)
+
+            # if we ended up with a part that's too small, go to the next one
+            # unless it starts with index 0, then it could be overlapping with press: keep it
+            if ot[0] > 0 and len(ot) < 4:
+                continue
+
+            # --- end of max clique ----
+
+            ot_event = [date_string, ps, disp, modularity, len(ot), [lat_dists[x] for x in ot], ot]
+            ot_events.append(ot_event)
+
+            # re-color the lat dists in the "event" red
+            plt.scatter(ot, [lat_dists[x] for x in ot], c='r')
+
+            break # after getting to the OT event
+
+        plt.ylim([0,700])
+        plt.savefig(os.path.join("out", "mod", date_string+"_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(modularity)+"_disp="+str(disp)+"_clique.png"))
+        plt.clf()
+
+    return ot_events
+
 def get_partitions(ldata, press_starts, press_lengths):
     """
     Partion the list of lateral distances into parts that contain
     values which are pairwise close.
 
-    For each press, work out before-press "events" and after-press
-    "events".
-    
+    For each press, work out a partition of the before/after-press interval
+    into parts (communities) based on the relationship of the lateral
+    distances (similar/not similar).
     """
     bcomms = []
     bmod = []
