@@ -21,8 +21,9 @@ util.ensure_date_in_filenames(dflist)
 dflist = util.get_box_files(constants.DATA_HOME, "txt")
 
 all_ot_events = []
-lds = []
-total_num_OC = 0
+all_oc_events = []
+ot_lds = []
+oc_lds = []
 
 for csv_file in dflist:
     print(csv_file, flush=True)
@@ -40,11 +41,16 @@ for csv_file in dflist:
 
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
 
-    ot_events = mod.get_ot_events(date_string, ldata, press_starts, b_partitions, b_modularities)
-    all_ot_events.extend(ot_events)
+    oc_events = mod.get_oc_events(date_string, ldata, press_starts, a_partitions, a_modularities)
+    all_oc_events.extend(oc_events)
+    # ot_events = mod.get_ot_events(date_string, ldata, press_starts, b_partitions, b_modularities)
+    # all_ot_events.extend(ot_events)
 
-util.write_to_csv_file(os.path.join("data", "ot_events.csv"), all_ot_events)
+# util.write_to_csv_file(os.path.join("data", "ot_events.csv"), all_ot_events)
+util.write_to_csv_file(os.path.join("data", "oc_events.csv"), all_oc_events)
 
+
+"""
 print("Number of OT events:", len(ot_events))
 lds = [ote[-2] for ote in all_ot_events]
 lds_trimmed_means = [stats.trim_mean(ld, 0.1)-20 for ld in lds]
@@ -70,6 +76,8 @@ print("median =", statistics.median(lds_trimmed_mins))
 # run some basic stats & figs
 # plt.hist(lds_trimmed_mins, bins=50)
 # plt.show()
+"""
+
 
 """
 # --------- vehicle recognition from video ----------
