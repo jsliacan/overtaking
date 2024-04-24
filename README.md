@@ -8,6 +8,23 @@ We have access to various data taken while riding a bike in traffic (focus is on
 - garmin Varia radar
 - rear-facing camera
 
+This project is a compilation of functions (semi-organized into packages) that we need to deal with various problems while processing the data.
+
+## Contents
+
+- [The Problem](#the-problem)
+- [Data sources](#data-sources)
+	- [Box](#box)
+	- [Radar](#radar)
+	- [Camera](#camera)
+- [Events detection](#events-detection)
+
+## The Problem
+
+As far as we could identify it correctly, the crux of the issue with detecting overtaking/oncoming events is the reliability of the sensor readings. There is noise in the environment (road furniture, weather, road debris flying in the air, insect, etc.) and it does considerably affect readings we have access to. There are two obvious approaches to the problem. One is to improve the hardware (sensor) and the other is to post-correct the readings in software. This repository deals with the latter. We are aware of a few other projects that aim to measure overtaking distances but none that would suit our needs. Mostly due to the unsolved problem of reliable event detection from the sensor data. If the goal is to gain awareness of what cyclists experience on the roads, we need to be confident (ideally in a quantifiable manner) that our methods do not systematically exlude certain types of overtakes or systematically "create phantom overtakes" due to unfavorable weather and road conditions or other reasons. 
+
+
+## Data sources 
 ### Box
 
 A non-commercial (DIY) device that we have access to for measuring lateral distance to the road-side of the bike until the next object or up to ~6 meters. 
@@ -15,7 +32,7 @@ A non-commercial (DIY) device that we have access to for measuring lateral dista
 The box measures lateral distance at frequency of 22Hz and creates a record in a csv/txt file with some metadata attached to each such lateral distance measurement (see prinscreen for an idea of what it looks like):
 1. Time stamp (if it happens to be a full second, i.e. every 22nd time) 
 2. GPS position (lat, long) 
-3. Speed (of the bike where the box is) 
+3. Speed (of the bike where the box is; in knots) 
 4. Lateral distance to the next object or max out 
 5. Button press: 0/1 
 
@@ -38,7 +55,7 @@ BikeLogs
 	|          |--- 20230116_Wahoo.fit
 ```
 
-and that the `BikeLogs` folder is located in `$(HOME)/Downloads`. If you want your `BikeLogs` folder elsewhere, modify values in `src/constants.py`. 
+Modify `src/constants.py` depending on where you keep the `Bikelogs` folder. 
 
 This repository mostly focuses on detection and analysis of events recorded with the box. All other data is mostly to help us ascertain the events that we identify from the primary box records. We care about not having many false positives/negatives and wrong lateral distance readings, e.g. due to noise in the environment or device errors. 
 
@@ -50,17 +67,7 @@ The `.fit` file contains Radar information. While we can access this data and pr
 
 Rear facing camera should, in theory, be another source of information that can verify or refute a detected overtake. Right now, we are able to process individual frames from such recordings and detect vehicles in them. We make use of YOLOv8 library. For our purposes, we find it sufficient to use their pre-trained `large` model. You can find the example detection in the Actions tab of this repo. Artifacts of the `Detect vehicles` workflow contain examples of such detections made on the sample frames we provide with the code. 
 
-## Example
-
-Clone this project and navigate to it
-
-``` bash
-$ git clone https://github.com/jsliacan/overtaking.git
-$ cd overtaking
-```
-From here, you can type `python3 .` to run the script in `__main__.py`, which we treat as a collection of scripts utilizing the functions in the packages `box`, `radar`, etc.
-
-## Events
+## Events detection 
 
 An *event* is either an overtake (OT) or an oncoming pass (OC). Both these events are marked in the `txt` file by a *button press* -- a long one for an OT and a short one for an OC.
 
@@ -83,5 +90,4 @@ To extract the right OT event (in red), it was enough to apply the method above.
 
 The post-detection correction consists of taking the detected part *p* in partition *P* and extracting the largest clique *c* from the restriction of *G* onto *p*, *G[p]*. However, we add back vertices which are connected to a large enough fraction of that clique, currently *0.7|c|*. 
 
-*Note: We currently also dismiss parts with <4 vertices. However, this is supposed to work correctly in conjunction with a fix that has not yet been implemented: if the OT event overlaps with a button press, we need to detect the overlapping part of the event too. Right now, only non-overlaping lat.dist. readings of the event are detected.*
-
+*Note: we are currently only searching the time space between two presses, thereby possibly missing events that overlap in their entirety with one of the presses.*
