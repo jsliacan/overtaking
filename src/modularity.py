@@ -4,9 +4,10 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-def run_louvain(nodes):
+def run_louvain(nodes, event_type):
     """
-    Nodes: lateral distances (list of length n)
+    nodes:        lateral distances (list of length n)
+    event_type:   event type to search for either 'oc' for oncoming or 'ot' for overtaking
 
     Ignore resolution param of louvain.
 
@@ -14,35 +15,34 @@ def run_louvain(nodes):
     and). Note that 60 is a bit less than 3s given 22 readings per
     second.
     """
-    
+
     communities = []
     modularity = 0
-    
+
     n = len(nodes)
     edges = [(i,j) for i in range(n-1) for j in range(i+1, n)]
 
     G = nx.Graph()
     G.add_nodes_from(range(n))
     G.add_edges_from(edges)
-            
+
     G = nx.Graph()
     G.add_nodes_from(range(n))
+
+    horizontal_gap = 999 # effectively unlimited
+    if event_type == 'ot':
+        horizontal_gap = 15 # max horizontal gap between two adjacent lat.dists (in graph G)
+
     for i in range(n-1):
         for j in range(i+1,n):
             d = abs(nodes[i]-nodes[j])
             # weigh edge 1 if vertices apart <40cm and 15/22s
-            if d < 40 and j-i<15: 
+            if d < 40 and j-i<horizontal_gap: 
                 w = 1
             else:
                 w = 0
-            #else:
-                # w = 1
-                # w = 1/np.sqrt(d)
-                # w = 1/d
-                # w = 1-(1/np.sqrt(40-d))
-                        
             G.add_edge(i,j, weight=w)
-                
+
     if len(edges) == 0:
         print("Error: graph G has 0 edges. Cannot construct a valid partition.")
         communities = []
@@ -53,6 +53,99 @@ def run_louvain(nodes):
 
     return (communities, modularity)
 
+def get_oc_events(date_string, ldata, press_starts, acomm, amod):
+    """
+    Given a partition (list of parts) returned by get_partitions()
+    return a list of oncoming (OC) events. Cleaned up and final.
+    Together with their metadata.
+    """
+
+    oc_events = []
+
+    partitions = acomm # one for each button press (empty if event is OT)
+    modularities = amod
+
+    for j, parts in enumerate(partitions):
+
+        # skip overtaking cases
+        if modularities[j] == -1:
+            continue
+
+        ps = press_starts[j]
+        modularity = modularities[j]
+        part_and_size_pairs = [(len(x), x) for x in parts]
+        part_and_size_pairs.sort(reverse=True) # sorts pairs by 1st item, i.e. size
+        press_gap = sum([s for s, p in part_and_size_pairs]) # length of interval we're looking at for this press
+        lat_dists = [ldata[ps+x][4] for x in range(press_gap)]
+
+        # plot the lateral distances in the interval (all blue)
+        plt.scatter(range(len(lat_dists)), lat_dists, c='b')
+
+        # ---- process the partition -----
+        for s, p in part_and_size_pairs:
+
+            lp = list(p)
+            lp.sort() # should already be sorted
+
+            # skip the maxed-out readings
+            if min([lat_dists[x] for x in lp]) > 500:
+                continue
+
+            # skip the readings stuck too low
+            if max([lat_dists[x] for x in lp]) < 100: 
+                continue
+
+            #subparts = mod.strip_and_split(lp, lat_dists, 8)
+            #if len(subparts) == 0:
+            #    continue
+            #lp = subparts[0]
+            #s = len(lp)
+
+            # --- max clique method ----
+            # Take the largest clique from the candidate part
+            # and re-attach the vertices from that part which are
+            # adjacent to a large portion of the clique
+            """
+            G = nx.Graph()
+            G.add_nodes_from(lp)
+            G.add_edges_from([(lp[x],lp[y]) for x in range(s-1) for y in range(x+1, s) if abs(lat_dists[lp[x]]-lat_dists[lp[y]])<35 and lp[y]-lp[x]<15])
+            mc = nx.approximation.max_clique(G)
+            additional_vertices = set()
+            for v in mc:
+                v_ball = [lat_dists[v]-30, lat_dists[v]+30]
+                for u in G.nodes:
+                    if u in mc:
+                        continue
+                    # make sure the vertex we include with the clique doesn't have a very small degree
+                    if lat_dists[u] > v_ball[0] and lat_dists[u] < v_ball[1] and G.degree(u) > 0.8*len(mc):
+                        additional_vertices.add(u)
+
+            oc = list(mc)+list(additional_vertices)
+            """
+            oc = lp
+            # if we ended up with a part that's too small, go to the next one
+            # unless it starts with index 0, then it could be overlapping with press: keep it
+            
+            #if oc[0] > 0 and len(oc) < 4:
+            #    continue
+
+            # --- end of max clique ----
+
+            disp = 0 # placeholder; used for OTs, not here
+            oc_event = [date_string, ps, disp, modularity, len(oc), [lat_dists[x] for x in oc], oc]
+            oc_events.append(oc_event)
+
+            # re-color the lat dists in the "event" red
+            plt.scatter(oc, [lat_dists[x] for x in oc], c='r')
+
+            break # after getting to the OC event
+
+        plt.ylim([0,700])
+        plt.savefig(os.path.join("out", "mod", date_string+"_oc_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(modularity)+"_clique.png"))
+        plt.clf()
+
+    return oc_events
+
 def get_ot_events(date_string, ldata, press_starts, bcomm, bmod):
     """
     Given a partition (list of parts) returned by get_partitions()
@@ -62,7 +155,7 @@ def get_ot_events(date_string, ldata, press_starts, bcomm, bmod):
 
     ot_events = []
 
-    partitions = bcomm # one for each button press (empty if even is OC)
+    partitions = bcomm # one for each button press (empty if event is OC)
     modularities = bmod
 
     for j, parts in enumerate(partitions):
@@ -140,7 +233,7 @@ def get_ot_events(date_string, ldata, press_starts, bcomm, bmod):
             break # after getting to the OT event
 
         plt.ylim([0,700])
-        plt.savefig(os.path.join("out", "mod", date_string+"_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(modularity)+"_disp="+str(disp)+"_clique.png"))
+        plt.savefig(os.path.join("out", "mod", date_string+"ot_ld_"+str(press_starts[j])+"_"+"{:.6f}".format(modularity)+"_disp="+str(disp)+"_clique.png"))
         plt.clf()
 
     return ot_events
@@ -178,7 +271,7 @@ def get_partitions(ldata, press_starts, press_lengths):
         if press_lengths[pi] > 10: # definitely overtake
 
             bnodes = [ldata[ps-j][4] for j in range(prev_gap)]
-            communities, modularity = run_louvain(bnodes)
+            communities, modularity = run_louvain(bnodes, 'ot')
             bcomms.append(communities)
             bmod.append(modularity)
             acomms.append([])
@@ -187,7 +280,7 @@ def get_partitions(ldata, press_starts, press_lengths):
         elif press_lengths[pi] < 9: # definitely oncoming
 
             anodes = [ldata[ps+j][4] for j in range(next_gap)]
-            communities, modularity = run_louvain(anodes)
+            communities, modularity = run_louvain(anodes, 'oc')
             bcomms.append([])
             bmod.append(-1) # code for "not calculated"
             acomms.append(communities)
