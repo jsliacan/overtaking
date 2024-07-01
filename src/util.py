@@ -7,8 +7,7 @@ import csv
 
 import src.constants
 
-
-def get_box_files(logs_dir):
+def get_box_files(logs_dir, suffix):
 
     box_filenames = []
 
@@ -17,7 +16,7 @@ def get_box_files(logs_dir):
         if os.path.isdir(day_dir):
             for gi in os.listdir(day_dir):
                 day_file = os.path.join(day_dir, gi)
-                if os.path.isfile(day_file) and day_file[-3:] == "TXT":
+                if os.path.isfile(day_file) and day_file[-3:].lower() == suffix.lower():
                     box_filenames.append(day_file)
 
     return box_filenames

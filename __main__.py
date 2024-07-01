@@ -16,12 +16,13 @@ from scipy import stats
 from src import box, constants, util
 from src import modularity as mod
 
-dflist = util.get_box_files(constants.DATA_HOME)
+dflist = util.get_box_files(constants.DATA_HOME, "txt")
 util.ensure_date_in_filenames(dflist)
-dflist = util.get_box_files(constants.DATA_HOME)
+dflist = util.get_box_files(constants.DATA_HOME, "txt")
 
 ot_events = []
 lds = []
+total_num_OC = 0
 
 for csv_file in dflist:
     print(csv_file, flush=True)
@@ -32,7 +33,11 @@ for csv_file in dflist:
     ldata = box.make_ldata(csvr)  # CSV data as a list
     # presses
     press_starts, press_lengths = box.get_press_lengths_and_starts(ldata)
-    
+
+    for pl in press_lengths:
+        if pl < 10:
+            total_num_OC += 1
+
     b_partitions, a_partitions, b_modularities, a_modularities = mod.get_partitions(ldata, press_starts, press_lengths)
 
     for j, b_parts in enumerate(b_partitions):
@@ -107,7 +112,7 @@ for csv_file in dflist:
         plt.clf()
 
 print("Number of OT events:", len(ot_events))
-
+print("Number of Oncoming:", total_num_OC)
 lds_trimmed_means = [stats.trim_mean(ld, 0.1)-20 for ld in lds]
 lds_trimmed_mins = []
 for ld in lds:
@@ -358,18 +363,40 @@ for event in my_events:
 # plt.legend(loc='upper right')
 # plt.savefig("figures/OT-vs-OC_events-hist.png")
 """
+
+"""
+# -------------------------- TEST fit.py ----------------------------
+import datetime
+from src import fit, util, constants
+filenames_list = util.get_box_files(constants.DATA_HOME, "fit")
+
+ride_durations_wahoo = []
+ride_distances_wahoo = []
+
+for filename in filenames_list:
+    print(filename)
+    msgs = fit.fit_file_messages(filename)
+    session = fit.fit_get_session(msgs)
+    if "Wahoo" in filename:
+        ride_durations_wahoo.append(session[0]["total_elapsed_time"])
+        ride_distances_wahoo.append(session[0]["total_distance"])
+
+
+print("total durations (wahoo):", str(datetime.timedelta(seconds = sum(ride_durations_wahoo))))
+print("total distances (wahoo):", sum(ride_distances_wahoo))
+"""
 """
 # -------------------------- TEST radar.py ----------------------------
 from src import radar
 #radar.radar_decode()
 all_events = radar.radar_unload()
-# radar.radar_events_to_csv("radar_out.csv", all_events)
-radar.plot_radar_data()
+radar.radar_events_to_csv("radar_out.csv", all_events)
+#radar.plot_radar_data()
 """
 """
 # -------------------------- TEST util.py ----------------------------
 
-for f in util.get_box_files(constants.DATA_HOME):
+for f in util.get_box_files(constants.DATA_HOME, "TXT"):
     print(f)
 
 print()
