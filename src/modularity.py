@@ -11,17 +11,17 @@ def run_louvain(nodes):
     and). Note that 60 is a bit less than 3s given 22 readings per
     second.
     """
-
+    
     communities = []
     modularity = 0
-
+    
     n = len(nodes)
     edges = [(i,j) for i in range(n-1) for j in range(i+1, n)]
 
     G = nx.Graph()
     G.add_nodes_from(range(n))
     G.add_edges_from(edges)
-
+            
     G = nx.Graph()
     G.add_nodes_from(range(n))
     for i in range(n-1):
@@ -37,9 +37,9 @@ def run_louvain(nodes):
                 # w = 1/np.sqrt(d)
                 # w = 1/d
                 # w = 1-(1/np.sqrt(40-d))
-
+                        
             G.add_edge(i,j, weight=w)
-
+                
     if len(edges) == 0:
         print("Error: graph G has 0 edges. Cannot construct a valid partition.")
         communities = []
@@ -50,6 +50,8 @@ def run_louvain(nodes):
 
     return (communities, modularity)
 
+    
+    
 def get_partitions(ldata, press_starts, press_lengths):
     """
     Partion the list of lateral distances into parts that contain
@@ -57,13 +59,13 @@ def get_partitions(ldata, press_starts, press_lengths):
 
     For each press, work out before-press "events" and after-press
     "events".
-
+    
     """
-    print("modularity:", len(press_lengths), len(press_starts))
     bcomms = []
     bmod = []
     acomms = []
     amod = []
+
     for pi, ps in enumerate(press_starts):
 
         default_gap = 100
@@ -79,23 +81,16 @@ def get_partitions(ldata, press_starts, press_lengths):
             next_ps_gap = press_starts[pi+1] - ps
         next_gap = min(default_gap, eof_gap, next_ps_gap)
 
-        # modified during Karlstad study:
-        # accept all presses as OT
-        # participants were only pressing for OTs, nothing else
-        if press_lengths[pi] > 0: # definitely overtake
+        
+        if press_lengths[pi] > 10: # definitely overtake
+
             bnodes = [ldata[ps-j][4] for j in range(prev_gap)]
             communities, modularity = run_louvain(bnodes)
             bcomms.append(communities)
             bmod.append(modularity)
             acomms.append([])
             amod.append(-1) # code for "not calculated"
-        else:
-            # still need to append, as indices would get shifted
-            bcomms.append([])
-            bmod.append(-1)
-            acomms.append([])
-            amod.append(-1)
-        """
+
         elif press_lengths[pi] < 9: # definitely oncoming
 
             anodes = [ldata[ps+j][4] for j in range(next_gap)]
@@ -104,7 +99,14 @@ def get_partitions(ldata, press_starts, press_lengths):
             bmod.append(-1) # code for "not calculated"
             acomms.append(communities)
             amod.append(modularity)
-        """
+
+        else:
+            # still need to append, as indices would get shifted
+            bcomms.append([])
+            bmod.append(-1)
+            acomms.append([])
+            amod.append(-1)
+            print("ambiguous press length:", press_lengths[pi], "starts at:", press_starts[pi], flush=True)
 
     return (bcomms, acomms, bmod, amod)
 
@@ -120,7 +122,7 @@ def dispersion_score(L):
     disp_score = 0
     rx = 5
     ry = 30
-
+    
     for i, li in enumerate(L):
         inside_ball_count = 0
         for j, lj in enumerate(L):
