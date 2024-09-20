@@ -1,6 +1,6 @@
 import os
 
-DATA_HOME = os.path.expanduser("~/Downloads/BikeLogs")
+DATA_HOME = os.path.expanduser("~/Downloads/BikeLogs/karlstad-study")
 
 RADAR_RANGES = 0
 RADAR_SPEEDS = 1

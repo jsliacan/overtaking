@@ -86,6 +86,8 @@ def correct_press_lengths_and_starts(press_starts, press_lengths):
     3. Discard presses of length=1. Physically impossible to do on purpose.
     """
 
+    for i in range(len(press_lengths)):
+        print(press_starts[i], press_lengths[i])
     # Check for case 1.
     original_num_presses = len(press_starts)
     num_presses = original_num_presses
@@ -148,12 +150,14 @@ def get_press_lengths_and_starts(ldat):
             if len_press == 0:
                 press_starts.append(i)
             len_press += 1
+            continue
 
-        if row[5] == 0 and len_press > 0:
+        if (row[5] == 0 or i == len(ldat)) and len_press > 0:
             press_lengths.append(len_press)
             len_press = 0
-
         i += 1
+    if len_press > 0:
+        press_lengths.append(len_press)
 
     return correct_press_lengths_and_starts(press_starts, press_lengths)
 
